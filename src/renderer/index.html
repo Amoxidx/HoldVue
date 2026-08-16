@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-src 'none';">
+    <title>HoldVue</title>
+    <link rel="icon" type="image/png" href="holdvue-icon.png">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <img class="brand-icon" src="holdvue-icon.png" alt="" aria-hidden="true">
+        <span class="wordmark">HoldVue</span>
+        <span class="status" data-status aria-live="polite" data-i18n="status.ready">Lokal bereit</span>
+        <button type="button" class="icon-button" data-open-settings data-i18n-aria-label="settings.title">⚙</button>
+      </header>
+      <section class="hero portfolio-hero" aria-labelledby="title">
+        <p class="eyebrow" data-i18n="hero.eyebrow">LOCAL-FIRST PORTFOLIO</p>
+        <h1 id="title" data-i18n="hero.title">Dein Portfolio bleibt lokal.</h1>
+        <p class="portfolio-total" data-portfolio-total>—</p>
+        <p class="portfolio-day" data-portfolio-day>—</p>
+        <div class="portfolio-coverage" aria-live="polite"><strong data-portfolio-valued>0/0</strong> <span data-i18n="portfolio.valued">bewertet</span><span class="sync-dot" aria-hidden="true"> · </span><span data-sync-summary>Noch keine Provider konfiguriert</span></div>
+        <div class="currency-switch" role="group" aria-label="Currency"><button type="button" class="secondary" data-currency-switch="EUR" aria-pressed="true">EUR</button><button type="button" class="secondary" data-currency-switch="USD" aria-pressed="false">USD</button></div>
+      </section>
+      <section class="dashboard-card portfolio-card" aria-labelledby="portfolio-title">
+        <div class="section-heading"><div><p class="eyebrow" data-i18n="portfolio.eyebrow">PORTFOLIO</p><h2 id="portfolio-title" data-i18n="portfolio.title">Portfolio</h2><p class="section-copy" data-i18n="portfolio.copy">Werte und Preise werden lokal aufgebaut.</p></div><div class="section-actions"><button type="button" class="secondary" data-refresh data-i18n="button.refresh">Jetzt synchronisieren</button></div></div>
+        <div class="chart-shell" data-portfolio-chart tabindex="0" role="group" aria-label="Portfolio value chart"><div class="chart-toolbar" role="group" aria-label="Chart range"><button type="button" class="range-button active" data-portfolio-range="1D" aria-pressed="true">1T</button><button type="button" class="range-button" data-portfolio-range="7D" aria-pressed="false">7T</button><button type="button" class="range-button" data-portfolio-range="1M" aria-pressed="false">1M</button><button type="button" class="range-button" data-portfolio-range="1Y" aria-pressed="false">1J</button><button type="button" class="range-button" data-portfolio-range="MAX" aria-pressed="false">MAX</button></div><div data-portfolio-chart-content></div><p class="chart-range-summary" data-portfolio-range-summary></p></div>
+        <div class="portfolio-toolbar" role="group" aria-label="Portfolio sorting"><span data-i18n="portfolio.sort">Sortieren</span><button type="button" class="range-button active" data-portfolio-sort="size" aria-pressed="true" data-i18n="portfolio.sortSize">Größe</button><button type="button" class="range-button" data-portfolio-sort="gainers" aria-pressed="false" data-i18n="portfolio.sortGainers">Gewinner</button><button type="button" class="range-button" data-portfolio-sort="losers" aria-pressed="false" data-i18n="portfolio.sortLosers">Verlierer</button></div>
+        <div class="asset-list" data-asset-list aria-live="polite"></div>
+        <section class="hidden-assets" data-hidden-assets hidden aria-labelledby="hidden-assets-title"><h3 id="hidden-assets-title" data-i18n="portfolio.hidden">Ausgeblendete Assets</h3><div data-hidden-asset-list></div></section>
+      </section>
+      <section class="dashboard-card" aria-labelledby="wallets-title">
+        <div class="section-heading">
+        <div><p class="eyebrow" data-i18n="wallet.eyebrow">WALLETS / WALLET-QUELLEN</p><h2 id="wallets-title" data-i18n="wallet.title">Wallets</h2><p class="section-copy" data-i18n="wallet.copy">Verwalte öffentliche Adressen und Extended Public Keys. Synchronisierung bleibt providerabhängig; keine NFTs.</p><p class="field-help" data-sync-summary aria-live="polite">Noch keine Provider konfiguriert</p></div>
+          <div class="section-actions"><button type="button" class="secondary" data-refresh data-i18n="button.refresh">Jetzt synchronisieren</button><button type="button" class="primary" data-add-wallet data-i18n="wallet.add">Wallet hinzufügen</button></div>
+        </div>
+        <div class="wallet-list" data-wallet-list aria-live="polite"></div>
+      </section>
+      <section class="dashboard-card" aria-labelledby="holdings-title">
+        <div class="section-heading">
+          <div><p class="eyebrow" data-i18n="holdings.eyebrow">MANUELLE BESTÄNDE</p><h2 id="holdings-title" data-i18n="holdings.title">Aktien und ETFs</h2><p class="section-copy" data-i18n="holdings.copy">Wähle ein Instrument aus der Provider-Suche und hinterlege nur die Stückzahl. Preise werden hier nicht erfunden.</p></div>
+          <div class="section-actions"><button type="button" class="primary" data-add-holding data-i18n="holdings.add">Aktie/ETF hinzufügen</button></div>
+        </div>
+        <div class="holding-list" data-holding-list aria-live="polite"></div>
+      </section>
+      <span class="sr-only" data-position-count>0</span>
+      <footer><span data-i18n="footer.local">HoldVue · lokal gespeichert</span><span data-footer-summary>EUR · DE · Dunkel</span></footer>
+    </main>
+
+    <dialog class="modal" data-wallet-dialog hidden aria-labelledby="wallet-dialog-title">
+      <form data-wallet-form>
+        <div class="modal-heading"><div><p class="eyebrow" data-i18n="dialog.public">PUBLIC SOURCE</p><h2 data-wallet-dialog-title id="wallet-dialog-title" data-i18n="dialog.add">Wallet hinzufügen</h2></div><button type="button" class="icon-button" data-wallet-cancel-close data-i18n-aria-label="button.close">×</button></div>
+        <p class="modal-copy" data-i18n="dialog.copy">Nur öffentliche Adresse oder xpub. Keine Seed-Phrase und kein privater Schlüssel.</p>
+        <div class="field"><label for="wallet-address" data-i18n="field.address">Adresse oder Extended Public Key</label><input id="wallet-address" data-wallet-address required maxlength="256" autocomplete="off" spellcheck="false" aria-describedby="wallet-detection wallet-error"><p class="field-help" data-wallet-detection aria-live="polite"></p></div>
+        <div class="field"><label for="wallet-label" data-i18n="field.label">Label / Name</label><input id="wallet-label" data-wallet-label required maxlength="80" data-i18n-placeholder="field.labelPlaceholder" placeholder="z. B. Hauptwallet"></div>
+        <div class="field"><label for="wallet-family" data-i18n="field.family">Erkannte Familie</label><select id="wallet-family" data-wallet-family required disabled><option value="" data-i18n="field.familyEmpty">Adresse zuerst prüfen</option><option value="evm">EVM</option><option value="bitcoin">Bitcoin</option><option value="solana">Solana</option><option value="cardano">Cardano</option></select></div>
+        <fieldset class="options" data-evm-options hidden><legend data-i18n="field.evmChains">EVM-Chains</legend><label class="check-row"><input type="checkbox" data-wallet-all-evm checked><span data-i18n="field.allEvm">Alle gängigen Chains automatisch prüfen</span></label><div class="chain-grid" data-evm-chains>
+          <label><input type="checkbox" data-chain-id value="1"> Ethereum</label><label><input type="checkbox" data-chain-id value="8453"> Base</label><label><input type="checkbox" data-chain-id value="42161"> Arbitrum</label><label><input type="checkbox" data-chain-id value="10"> Optimism</label><label><input type="checkbox" data-chain-id value="137"> Polygon</label><label><input type="checkbox" data-chain-id value="56"> BNB Chain</label><label><input type="checkbox" data-chain-id value="43114"> Avalanche</label><label><input type="checkbox" data-chain-id value="100"> Gnosis</label><label><input type="checkbox" data-chain-id value="59144"> Linea</label><label><input type="checkbox" data-chain-id value="534352"> Scroll</label><label><input type="checkbox" data-chain-id value="324"> zkSync</label><label><input type="checkbox" data-chain-id value="42220"> Celo</label><label><input type="checkbox" data-chain-id value="5000"> Mantle</label>
+        </div></fieldset>
+        <div class="field" data-solana-options hidden><label for="wallet-solana-network" data-i18n="field.solanaNetwork">Solana-Netzwerk</label><select id="wallet-solana-network" data-wallet-solana-network><option value="mainnet-beta" data-i18n="network.mainnetBeta">Mainnet-beta</option><option value="devnet" data-i18n="network.devnet">Devnet</option><option value="testnet" data-i18n="network.testnet">Testnet</option></select></div>
+        <label class="check-row"><input type="checkbox" data-wallet-enabled checked><span data-i18n="field.enabled">Aktiv</span></label>
+        <p class="inline-error" data-wallet-error role="alert" hidden></p>
+        <div class="modal-actions"><button type="button" class="secondary" data-wallet-cancel data-i18n="button.cancel">Abbrechen</button><button type="submit" class="primary" data-i18n="button.save">Speichern</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" data-delete-dialog hidden aria-labelledby="delete-dialog-title">
+      <div class="modal-heading"><div><p class="eyebrow" data-i18n="delete.eyebrow">AKTION BESTÄTIGEN</p><h2 id="delete-dialog-title" data-i18n="delete.title">Wallet löschen</h2></div></div>
+      <p><span data-i18n="delete.copy">Die Wallet und zugehörige lokale Positionen werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden.</span> <strong data-delete-wallet-label></strong></p>
+      <div class="modal-actions"><button type="button" class="secondary" data-delete-cancel data-i18n="button.cancel">Abbrechen</button><button type="button" class="danger" data-delete-confirm data-i18n="button.delete">Löschen</button></div>
+    </dialog>
+
+    <dialog class="modal settings-modal" data-settings-dialog hidden aria-labelledby="settings-dialog-title">
+      <div class="modal-heading"><div><p class="eyebrow" data-i18n="settings.eyebrow">LOKALE EINSTELLUNGEN</p><h2 id="settings-dialog-title" data-i18n="settings.title">Einstellungen</h2></div><button type="button" class="icon-button" data-settings-close-icon data-i18n-aria-label="button.close">×</button></div>
+      <div class="settings-grid">
+        <div class="field"><label for="setting-currency" data-i18n="settings.currency">Währung</label><select id="setting-currency" data-setting-currency><option value="EUR">EUR</option><option value="USD">USD</option></select></div>
+        <div class="field"><label for="setting-locale" data-i18n="settings.locale">Sprache</label><select id="setting-locale" data-setting-locale><option value="de" data-i18n="locale.de">Deutsch</option><option value="en" data-i18n="locale.en">English</option></select></div>
+        <div class="field"><label for="setting-theme" data-i18n="settings.theme">Darstellung</label><select id="setting-theme" data-setting-theme><option value="dark" data-i18n="theme.dark">Dunkel</option><option value="light" data-i18n="theme.light">Hell</option></select></div>
+      </div>
+      <fieldset class="options"><legend data-i18n="settings.automation">Lokale Automatisierung</legend><label class="check-row"><input type="checkbox" data-setting-scheduler><span data-i18n="settings.scheduler">Minütliche Aktualisierung</span></label><label class="check-row"><input type="checkbox" data-setting-spam><span data-i18n="settings.spam">Spamfilter aktiv</span></label><label class="check-row"><input type="checkbox" data-setting-hidden-spam><span data-i18n="settings.hiddenSpam">Verborgene Spamassets zeigen</span></label></fieldset>
+      <fieldset class="options"><legend data-i18n="settings.providers">Provider aktivieren</legend><label class="check-row"><input type="checkbox" data-provider-id="evm"><span data-i18n="provider.evm">EVM-RPC</span></label><label class="check-row"><input type="checkbox" data-provider-id="bitcoin.mempool"><span data-i18n="provider.bitcoin">Bitcoin · mempool.space</span></label><label class="check-row"><input type="checkbox" data-provider-id="solana.rpc"><span data-i18n="provider.solana">Solana JSON-RPC</span></label><label class="check-row"><input type="checkbox" data-provider-id="cardano.koios"><span data-i18n="provider.cardano">Cardano · Koios</span></label></fieldset>
+      <fieldset class="options"><legend data-i18n="settings.providerConfig">Provider-Konfiguration</legend><div class="field"><label for="etherscan-key" data-i18n="settings.etherscanKey">Kostenloser Etherscan-Key (verschlüsselt)</label><input id="etherscan-key" type="password" data-etherscan-key autocomplete="new-password" maxlength="4096" data-i18n-placeholder="settings.keyPlaceholder" placeholder="Nur zum Speichern eingeben"><p class="field-help" data-i18n="settings.etherscanHelp">Kostenloser Key ermöglicht native EVM-Balances und begrenzte Token-Erkennung; Limits bleiben sichtbar.</p><p class="field-help" data-etherscan-key-status aria-live="polite"></p><a class="field-link" href="https://etherscan.io/apis" target="_blank" rel="noreferrer" data-i18n="settings.etherscanLink">Etherscan-Key beantragen</a><div class="modal-actions"><button type="button" class="secondary" data-etherscan-key-save data-i18n="button.saveKey">Key speichern</button><button type="button" class="secondary" data-etherscan-key-delete data-i18n="button.deleteKey">Key entfernen</button></div></div><div class="field"><label for="fmp-key" data-i18n="settings.fmpKey">FMP-Key (verschlüsselt)</label><input id="fmp-key" type="password" data-fmp-key autocomplete="new-password" maxlength="4096" data-i18n-placeholder="settings.keyPlaceholder" placeholder="Nur zum Speichern eingeben"><p class="field-help" data-i18n="settings.fmpHelp">Optionaler Key für Aktien-/ETF-Suche und -Bewertung; Provider-Limits bleiben sichtbar.</p><p class="field-help" data-fmp-key-status aria-live="polite"></p><div class="modal-actions"><button type="button" class="secondary" data-fmp-key-save data-i18n="button.saveKey">Key speichern</button><button type="button" class="secondary" data-fmp-key-delete data-i18n="button.deleteKey">Key entfernen</button></div></div><div class="field"><label for="solana-endpoint" data-i18n="settings.solanaEndpoint">Solana RPC-Override (HTTPS)</label><input id="solana-endpoint" type="url" data-provider-endpoint="solana.rpc" autocomplete="off" placeholder="https://..."></div></fieldset>
+      <fieldset class="options"><legend data-i18n="settings.rpcOverrides">EVM-RPC-Overrides</legend><p class="field-help" data-i18n="settings.rpcHelp">Optional, credential-freie HTTPS-Endpunkte pro Chain.</p><div class="settings-rpc-grid"><label>Ethereum <input type="url" data-rpc-chain-id="1" autocomplete="off"></label><label>Base <input type="url" data-rpc-chain-id="8453" autocomplete="off"></label><label>Arbitrum One <input type="url" data-rpc-chain-id="42161" autocomplete="off"></label><label>Optimism <input type="url" data-rpc-chain-id="10" autocomplete="off"></label><label>Polygon PoS <input type="url" data-rpc-chain-id="137" autocomplete="off"></label><label>BNB Smart Chain <input type="url" data-rpc-chain-id="56" autocomplete="off"></label><label>Avalanche C-Chain <input type="url" data-rpc-chain-id="43114" autocomplete="off"></label><label>Gnosis <input type="url" data-rpc-chain-id="100" autocomplete="off"></label><label>Linea <input type="url" data-rpc-chain-id="59144" autocomplete="off"></label><label>Scroll <input type="url" data-rpc-chain-id="534352" autocomplete="off"></label><label>zkSync Era <input type="url" data-rpc-chain-id="324" autocomplete="off"></label><label>Celo <input type="url" data-rpc-chain-id="42220" autocomplete="off"></label><label>Mantle <input type="url" data-rpc-chain-id="5000" autocomplete="off"></label></div></fieldset>
+      <section class="settings-wallets" aria-labelledby="settings-wallets-title"><h3 id="settings-wallets-title" data-i18n="settings.wallets">Wallet-Verwaltung</h3><div class="wallet-list" data-settings-wallet-list></div></section>
+      <section class="hidden-assets" data-settings-hidden-assets hidden aria-labelledby="settings-hidden-assets-title"><h3 id="settings-hidden-assets-title" data-i18n="portfolio.hidden">Ausgeblendete Assets</h3><div data-settings-hidden-asset-list></div></section>
+      <div class="modal-actions"><button type="button" class="primary" data-settings-close data-i18n="button.done">Fertig</button></div>
+    </dialog>
+
+    <dialog class="modal" data-holding-dialog hidden aria-labelledby="holding-dialog-title">
+      <form data-holding-form>
+        <div class="modal-heading"><div><p class="eyebrow" data-i18n="holdings.eyebrow">MANUELLE BESTÄNDE</p><h2 id="holding-dialog-title" data-holding-dialog-title data-i18n="holdings.add">Aktie/ETF hinzufügen</h2></div><button type="button" class="icon-button" data-holding-cancel-close data-i18n-aria-label="button.close">×</button></div>
+        <div class="field"><label for="instrument-search" data-i18n="holdings.search">Instrument suchen</label><input id="instrument-search" data-instrument-search role="combobox" aria-autocomplete="list" aria-controls="instrument-suggestions" aria-expanded="false" maxlength="120" autocomplete="off" spellcheck="false" data-i18n-placeholder="holdings.searchPlaceholder" placeholder="Name oder Symbol eingeben"><ul id="instrument-suggestions" class="suggestions" data-instrument-suggestions role="listbox" hidden></ul><p class="field-help" data-instrument-status aria-live="polite"></p></div>
+        <div class="field"><label for="holding-quantity" data-i18n="holdings.quantity">Stückzahl</label><input id="holding-quantity" data-holding-quantity required inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" maxlength="24" autocomplete="off" aria-describedby="holding-error"><p class="field-help" data-selected-instrument></p></div>
+        <p class="inline-error" data-holding-error role="alert" hidden></p>
+        <div class="modal-actions"><button type="button" class="secondary" data-holding-cancel data-i18n="button.cancel">Abbrechen</button><button type="submit" class="primary" data-i18n="button.save">Speichern</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" data-holding-delete-dialog hidden aria-labelledby="holding-delete-dialog-title">
+      <div class="modal-heading"><div><p class="eyebrow" data-i18n="delete.eyebrow">AKTION BESTÄTIGEN</p><h2 id="holding-delete-dialog-title" data-i18n="holdings.deleteTitle">Bestand löschen</h2></div></div>
+      <p><span data-i18n="holdings.deleteCopy">Der manuelle Bestand wird aus dem lokalen Portfolio entfernt.</span> <strong data-delete-holding-label></strong></p>
+      <div class="modal-actions"><button type="button" class="secondary" data-holding-delete-cancel data-i18n="button.cancel">Abbrechen</button><button type="button" class="danger" data-holding-delete-confirm data-i18n="button.delete">Löschen</button></div>
+    </dialog>
+
+    <script type="module" src="renderer.js"></script>
+  </body>
+</html>

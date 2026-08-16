@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "settings": {
+    "schemaVersion": 1,
+    "currency": "EUR",
+    "locale": "en",
+    "theme": "light",
+    "schedulerEnabled": false
+  },
+  "positions": [],
+  "wallets": []
+}

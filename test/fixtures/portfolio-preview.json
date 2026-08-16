@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 5,
+  "settings": {
+    "schemaVersion": 5,
+    "currency": "EUR",
+    "locale": "en",
+    "theme": "dark",
+    "schedulerEnabled": false,
+    "spamFilterEnabled": true,
+    "showHiddenSpamAssets": false,
+    "hiddenAssetIds": [],
+    "enabledChainIds": [],
+    "customChains": [],
+    "rpcOverrides": [],
+    "providerRefs": [],
+    "providerEndpoints": [],
+    "enabledProviderIds": []
+  },
+  "wallets": [],
+  "positions": [],
+  "instruments": [
+    {
+      "schemaVersion": 4,
+      "id": "instrument-preview",
+      "providerId": "fmp.market",
+      "providerSymbol": "SYNTH@DEMO",
+      "symbol": "SYNTH",
+      "name": "Synthetic Preview ETF",
+      "exchange": "DEMO",
+      "currency": "EUR",
+      "type": "etf"
+    }
+  ],
+  "holdings": [
+    {
+      "schemaVersion": 4,
+      "id": "holding-preview",
+      "instrumentId": "instrument-preview",
+      "quantityHundredths": "1234",
+      "quantity": "12.34",
+      "updatedAt": 1700000000000
+    }
+  ],
+  "sync": { "schemaVersion": 1, "statuses": [] },
+  "prices": {
+    "schemaVersion": 5,
+    "quotes": [
+      {
+        "assetId": "instrument:instrument-preview",
+        "priceEurScaled": "1250000000000",
+        "priceUsdScaled": "1360000000000",
+        "scale": 12,
+        "change24hPercentScaled": "50000",
+        "change24hEurPercentScaled": "50000",
+        "change24hUsdPercentScaled": "42000",
+        "previousPriceEurScaled": "1190476190476",
+        "previousPriceUsdScaled": "1304347826087",
+        "source": "synthetic-preview",
+        "sourceTimestamp": 1700000000000,
+        "fetchedAt": 1700000000000
+      }
+    ],
+    "statuses": [
+      {
+        "assetId": "instrument:instrument-preview",
+        "providerId": "fmp.market",
+        "status": "ok",
+        "errorCode": null,
+        "lastGoodFetchedAt": 1700000000000
+      }
+    ],
+    "valuations": [
+      {
+        "assetId": "instrument:instrument-preview",
+        "quantityBaseUnits": "1234",
+        "quantityDecimals": 2,
+        "priceEurScaled": "1250000000000",
+        "priceUsdScaled": "1360000000000",
+        "valueEurScaled": "15425000000000",
+        "valueUsdScaled": "16782400000000",
+        "dayChangeEurScaled": "614285714287",
+        "dayChangeUsdScaled": "704000000000",
+        "dayChangePercentScaled": "50000",
+        "status": "valued"
+      }
+    ],
+    "history": [
+      {
+        "id": "portfolio",
+        "kind": "portfolio-value",
+        "points": [
+          { "timestamp": 1700000000000, "valueEurScaled": "15000000000000", "valueUsdScaled": "16320000000000", "coverage": "complete" },
+          { "timestamp": 1700003600000, "valueEurScaled": "15425000000000", "valueUsdScaled": "16782400000000", "coverage": "complete" }
+        ]
+      },
+      {
+        "id": "instrument:instrument-preview",
+        "kind": "asset-price",
+        "points": [
+          { "timestamp": 1700000000000, "valueEurScaled": "1200000000000", "valueUsdScaled": "1305600000000", "coverage": "complete" },
+          { "timestamp": 1700003600000, "valueEurScaled": "1250000000000", "valueUsdScaled": "1360000000000", "coverage": "complete" }
+        ]
+      }
+    ],
+    "totalEurScaled": "15425000000000",
+    "totalUsdScaled": "16782400000000",
+    "complete": true,
+    "valuedAssets": 1,
+    "totalAssets": 1,
+    "dayChangeEurScaled": "614285714287",
+    "dayChangeUsdScaled": "704000000000",
+    "dayChangePercentScaled": "4095"
+  }
+}
