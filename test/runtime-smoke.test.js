@@ -4,11 +4,13 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { buildRuntimePaths, createFmpKeyGetter, createProductionIdFactory, createSystemClock, loadRuntimeModule as loadMainModule, runEntry, startMain } from '../src/main.ts';
 import { createMainComposition } from '../src/main-app.ts';
-import { createPreloadApi, installPreloadBridge, loadRuntimeModule as loadPreloadModule, runPreload, startPreload } from '../src/preload.ts';
+import preloadModule from '../dist/preload.cjs';
 import { createRendererController } from '../src/renderer/renderer-app.ts';
 import { runRenderer } from '../src/renderer/renderer.ts';
 import { encodeBase58Check, encodeBech32 } from '../src/shared/addresses.ts';
 import { JsonEncryptedBlobStore } from '../src/shared/secrets.ts';
+
+const { createPreloadApi, installPreloadBridge, loadRuntimeModule: loadPreloadModule, runPreload, startPreload } = preloadModule;
 
 function runtimeFixture() {
   const handlers = new Map();
@@ -270,7 +272,7 @@ test('ESM runtime paths and entry composition are injectable', async () => {
   const paths = buildRuntimePaths(import.meta.url);
   assert.equal(typeof loadMainModule('node:path').join, 'function');
   assert.equal(typeof loadPreloadModule('node:path').join, 'function');
-  assert.match(paths.preload, /preload\.js$/);
+  assert.match(paths.preload, /preload\.cjs$/);
   assert.match(paths.renderer, /renderer[\\/]index\.html$/);
   assert.match(paths.icon, /renderer[\\/]holdvue-icon\.png$/);
   let launches = 0;
@@ -289,7 +291,7 @@ test('ESM runtime paths and entry composition are injectable', async () => {
   }, options => { captured = options; return fakeComposition; });
   await Promise.resolve();
   assert.equal(started, fakeComposition);
-  assert.match(captured.paths.preload, /preload\.js$/);
+  assert.match(captured.paths.preload, /preload\.cjs$/);
   assert.match(captured.paths.icon, /renderer[\\/]holdvue-icon\.png$/);
   // Exercise both production adapter wiring paths without creating a wallet or
   // making a network request: a resolved RPC override supplies the injected

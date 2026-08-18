@@ -16,6 +16,6 @@
     "lib": ["ES2022", "DOM"],
     "types": ["node"]
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.cts"],
   "exclude": ["test", "dist"]
 }

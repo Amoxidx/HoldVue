@@ -74,7 +74,12 @@ test('public tree rejects private artefacts, user paths, addresses, and non-empt
   const packReport = JSON.parse(pack.stdout)[0];
   const packFiles = packReport.files.map(file => file.path);
   assert.equal(packFiles.some(file => file === 'dist/main.js'), true);
-  assert.equal(packFiles.some(file => file === 'dist/preload.js'), true);
+  assert.equal(packFiles.some(file => file === 'dist/preload.cjs'), true);
+  assert.equal(packFiles.some(file => file === 'dist/preload.js'), false);
+  const preloadArtifactPath = join(rootPath, 'dist', 'preload.cjs');
+  const preloadArtifact = await readFile(preloadArtifactPath, 'utf8');
+  assert.doesNotMatch(preloadArtifact, /^\s*import\s/m);
+  assert.doesNotThrow(() => new Function('require', 'module', 'exports', 'process', preloadArtifact));
   assert.equal(packFiles.some(file => file === 'dist/renderer/index.html'), true);
   assert.equal(packFiles.some(file => /\.(?:pem|key|p12|pfx|sqlite|db)$/i.test(file)), false);
   assert.equal(packFiles.some(file => /^(?:test|docs|\.env)/.test(file)), false);
