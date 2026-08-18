@@ -32,12 +32,24 @@ jobs:
           - platform: macOS-x64
             os: macos-15-intel
             command: npm run package:mac:x64
+            artifact_path: |
+              release/*.dmg
+              release/*-mac.zip
+              release/*.blockmap
           - platform: macOS-arm64
             os: macos-14
             command: npm run package:mac:arm64
+            artifact_path: |
+              release/*.dmg
+              release/*-mac.zip
+              release/*.blockmap
           - platform: Windows-x64
             os: windows-latest
             command: npm run package:win
+            artifact_path: |
+              release/*.exe
+              release/*.exe.blockmap
+              release/*-win.zip
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
@@ -53,5 +65,5 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: holdvue-${{ matrix.platform }}-unsigned
-          path: release/*
+          path: ${{ matrix.artifact_path }}
           if-no-files-found: error
