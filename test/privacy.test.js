@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { createEmptyPortfolioState } from '../src/shared/state.ts';
@@ -42,7 +42,7 @@ test('public tree rejects private artefacts, user paths, addresses, and non-empt
     assert.equal(secretStateField.test(source), false, filename);
     assert.equal(credentialUrl.test(source), false, filename);
     assert.equal(credentialPath.test(source), false, filename);
-    if (!filename.endsWith('/package-lock.json')) {
+    if (basename(filename) !== 'package-lock.json') {
       assert.equal(walletAddress.test(source), false, filename);
       assert.equal(secretPattern.test(source), false, filename);
     }
@@ -77,7 +77,7 @@ test('public tree rejects private artefacts, user paths, addresses, and non-empt
     assert.equal(secretStateField.test(source), false, `packed ${file}`);
     assert.equal(credentialUrl.test(source), false, `packed ${file}`);
     assert.equal(credentialPath.test(source), false, `packed ${file}`);
-    if (!file.endsWith('package-lock.json')) assert.equal(secretPattern.test(source), false, `packed ${file}`);
+    if (basename(file) !== 'package-lock.json') assert.equal(secretPattern.test(source), false, `packed ${file}`);
   }
   const reachable = spawnSync('git', ['rev-list', '--objects', '--all'], { cwd: rootPath, encoding: 'utf8' });
   assert.equal(reachable.status, 0, reachable.stderr);
@@ -98,7 +98,7 @@ test('public tree rejects private artefacts, user paths, addresses, and non-empt
       maxBuffer: 16 * 1024 * 1024
     });
     assert.equal(blob.status, 0, blob.stderr);
-    if (!objectPath.endsWith('package-lock.json')) {
+    if (basename(objectPath) !== 'package-lock.json') {
       assert.equal(walletAddress.test(blob.stdout), false, `git object ${objectId}`);
       assert.equal(secretPattern.test(blob.stdout), false, `git object ${objectId}`);
     }
