@@ -3,9 +3,11 @@ import { readFile, readdir } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { createEmptyPortfolioState } from '../src/shared/state.ts';
 
 const root = new URL('../', import.meta.url);
+const rootPath = fileURLToPath(root);
 // Electron-builder output is audited separately at the package boundary.
 // Keep this source-tree exclusion narrow: only the gitignored release folder
 // is omitted, while package contents are checked by scripts/audit-package.mjs.
@@ -24,7 +26,7 @@ async function files(directory) {
 }
 
 test('public tree rejects private artefacts, user paths, addresses, and non-empty defaults', async () => {
-  const contents = await files(root.pathname);
+  const contents = await files(rootPath);
   const forbiddenArtifact = /\.(?:pem|key|p12|pfx|sqlite|db|tgz|zip|dmg)$/i;
   const absoluteUserPath = new RegExp('(?:^|["\\s])/(?:Users|home)/[^"\\s]+|[A-Za-z]:\\\\Users\\\\');
   const walletAddress = /0x[0-9a-f]{40}|bc1[a-z0-9]{25,}|(?:addr|stake)1[0-9a-z]{20,}|\b[13][1-9A-HJ-NP-Za-km-z]{25,34}\b|\b(?:xpub|ypub|zpub|tpub|upub|vpub)[1-9A-HJ-NP-Za-km-z]{20,}\b/i;
@@ -52,12 +54,12 @@ test('public tree rejects private artefacts, user paths, addresses, and non-empt
   assert.equal(secretStateField.test(JSON.stringify(empty)), false);
   assert.equal(credentialUrl.test(JSON.stringify(empty)), false);
   assert.equal(credentialPath.test(JSON.stringify(empty)), false);
-  const fixture = await readFile(join(root.pathname, 'test', 'fixtures', 'synthetic-state.json'), 'utf8');
+  const fixture = await readFile(join(rootPath, 'test', 'fixtures', 'synthetic-state.json'), 'utf8');
   assert.match(fixture, /schemaVersion/);
   assert.doesNotMatch(fixture, /solana|(?:wallet|account)?address\s*:/i);
-  const build = spawnSync('npm', ['run', 'build'], { cwd: root.pathname, encoding: 'utf8' });
+  const build = spawnSync('npm', ['run', 'build'], { cwd: rootPath, encoding: 'utf8' });
   assert.equal(build.status, 0, build.stderr);
-  const pack = spawnSync('npm', ['pack', '--dry-run', '--json'], { cwd: root.pathname, encoding: 'utf8' });
+  const pack = spawnSync('npm', ['pack', '--dry-run', '--json'], { cwd: rootPath, encoding: 'utf8' });
   assert.equal(pack.status, 0, pack.stderr);
   const packReport = JSON.parse(pack.stdout)[0];
   const packFiles = packReport.files.map(file => file.path);
@@ -69,7 +71,7 @@ test('public tree rejects private artefacts, user paths, addresses, and non-empt
   assert.equal(packFiles.some(file => /(?:holdvue-state|\.backup\.json|\.bak$|\.(?:tgz|zip|dmg)$)/i.test(file)), false);
   for (const file of packFiles) {
     if (!/\.(?:js|json|md|mjs|ts|html|css|txt|example|map)$/i.test(file)) continue;
-    const source = await readFile(join(root.pathname, file), 'utf8');
+    const source = await readFile(join(rootPath, file), 'utf8');
     assert.equal(absoluteUserPath.test(source), false, `packed ${file}`);
     assert.equal(walletAddress.test(source), false, `packed ${file}`);
     assert.equal(secretStateField.test(source), false, `packed ${file}`);
@@ -77,13 +79,13 @@ test('public tree rejects private artefacts, user paths, addresses, and non-empt
     assert.equal(credentialPath.test(source), false, `packed ${file}`);
     if (!file.endsWith('package-lock.json')) assert.equal(secretPattern.test(source), false, `packed ${file}`);
   }
-  const reachable = spawnSync('git', ['rev-list', '--objects', '--all'], { cwd: root.pathname, encoding: 'utf8' });
+  const reachable = spawnSync('git', ['rev-list', '--objects', '--all'], { cwd: rootPath, encoding: 'utf8' });
   assert.equal(reachable.status, 0, reachable.stderr);
   const objectPaths = new Map(reachable.stdout.split('\n').filter(Boolean).map(line => {
     const separator = line.indexOf(' ');
     return separator < 0 ? [line, ''] : [line.slice(0, separator), line.slice(separator + 1)];
   }));
-  const objects = spawnSync('git', ['cat-file', '--batch-all-objects', '--batch-check=%(objectname) %(objecttype)'], { cwd: root.pathname, encoding: 'utf8' });
+  const objects = spawnSync('git', ['cat-file', '--batch-all-objects', '--batch-check=%(objectname) %(objecttype)'], { cwd: rootPath, encoding: 'utf8' });
   assert.equal(objects.status, 0, objects.stderr);
   for (const line of objects.stdout.split('\n').filter(Boolean)) {
     const [objectId, type] = line.split(' ');
@@ -91,7 +93,7 @@ test('public tree rejects private artefacts, user paths, addresses, and non-empt
     const objectPath = objectPaths.get(objectId) ?? '';
     if (/\.(?:png|icns|ico)$/i.test(objectPath)) continue;
     const blob = spawnSync('git', ['cat-file', 'blob', objectId], {
-      cwd: root.pathname,
+      cwd: rootPath,
       encoding: 'utf8',
       maxBuffer: 16 * 1024 * 1024
     });

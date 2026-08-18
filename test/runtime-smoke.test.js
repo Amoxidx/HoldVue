@@ -455,7 +455,7 @@ test('ciphertext backing is atomic, restrictive, and tolerant of missing/corrupt
     backing.set('synthetic-ref', new Uint8Array([1, 2, 3]));
     assert.deepEqual([...backing.get('synthetic-ref')], [1, 2, 3]);
     assert.equal(readFileSync(filename, 'utf8').includes('1,2,3'), false);
-    assert.equal((statSync(filename).mode & 0o777), 0o600);
+    if (process.platform !== 'win32') assert.equal((statSync(filename).mode & 0o777), 0o600);
     backing.set('second', new Uint8Array([4]));
     backing.delete('synthetic-ref');
     assert.equal(backing.get('synthetic-ref'), null);
