@@ -9,8 +9,8 @@ const config = (items = points()) => ({ points: items, currency: 'EUR', range: '
 test('chart geometry and markup cover empty, single and compact multi-point states', () => {
   assert.deepEqual(buildChartGeometry(config([])).points, []);
   assert.match(chartMarkup(config([])), /data-chart-empty/);
-  const one = chartMarkup(config(points(1))); assert.doesNotMatch(one, /polyline/); assert.match(one, /chart-point/);
-  const many = chartMarkup(config(), 'en'); assert.match(many, /chart-guide/); assert.match(many, /chart-crosshair/); assert.match(many, /text-anchor/); assert.equal((many.match(/chart-x-label/g) ?? []).length, 3);
+  const one = chartMarkup(config(points(1))); assert.doesNotMatch(one, /polyline/); assert.doesNotMatch(one, /chart-area/); assert.match(one, /chart-point/);
+  const many = chartMarkup(config(), 'en'); assert.match(many, /chart-guide/); assert.match(many, /chart-area/); assert.match(many, /chart-crosshair/); assert.match(many, /text-anchor/); assert.equal((many.match(/chart-x-label/g) ?? []).length, 3);
   assert.match(chartMarkup(config([{ ...points(1)[0], valueEurScaled: '1234500000000' }]), 'de'), /1,23/);
   assert.match(chartMarkup({ ...config(), range: '7D' }), /chart-x-label/);
   assert.match(chartMarkup({ ...config(), range: '1M' }), /chart-x-label/);

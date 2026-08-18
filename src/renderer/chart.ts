@@ -73,7 +73,7 @@ function yLabels(values: readonly string[], currency: Currency, locale: string):
 export interface ChartGeometry { readonly points: readonly { readonly x: number; readonly y: number; readonly timestamp: number; readonly value: string }[]; readonly width: number; readonly height: number; }
 export function buildChartGeometry(config: ChartConfig): ChartGeometry {
   const width = safeDimension(config.width, 720, 240); const height = safeDimension(config.height, config.unit === 'price' ? 160 : 240, 100);
-  const left = 28; const right = 14; const top = 14; const bottom = 26; const values = chartValues(config.points, config.currency);
+  const left = 58; const right = 12; const top = 18; const bottom = 30; const values = chartValues(config.points, config.currency);
   if (values.length === 0) return { points: [], width, height };
   const numbers = values.map(value => BigInt(value)); const min = numbers.reduce((a, b) => a < b ? a : b); const max = numbers.reduce((a, b) => a > b ? a : b); const span = max - min;
   return { width, height, points: config.points.map((point, index) => ({ x: xCoordinate(index, config.points.length, width, left, right), y: coordinate(values[index]!, min, span, height, top, bottom), timestamp: point.timestamp, value: values[index]! })) };
@@ -84,12 +84,12 @@ export function chartMarkup(config: ChartConfig, locale = 'de'): string {
   if (config.points.length === 0) return `<div class="chart-empty" data-chart-empty>${escape(config.summary)}</div>`;
   const polyline = geometry.points.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
   const circles = geometry.points.map((point, index) => `<circle class="chart-point" cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${config.points.length === 1 ? '4' : '2.5'}" data-chart-index="${index}" aria-hidden="true"></circle>`).join('');
-  const guides = ys.map((_, index) => { const y = ys.length === 1 ? 18 : 18 + index * (geometry.height - 40) / (ys.length - 1); return `<line class="chart-guide" x1="28" x2="${geometry.width - 14}" y1="${y.toFixed(2)}" y2="${y.toFixed(2)}"></line>`; }).join('');
-  const yText = ys.map((value, index) => { const y = ys.length === 1 ? 18 : 18 + index * (geometry.height - 40) / (ys.length - 1); return `<text class="chart-y-label" x="0" y="${y.toFixed(2)}">${escape(value)}</text>`; }).join('');
+  const guides = ys.map((_, index) => { const y = ys.length === 1 ? 18 : 18 + index * (geometry.height - 48) / (ys.length - 1); return `<line class="chart-guide" x1="58" x2="${geometry.width - 12}" y1="${y.toFixed(2)}" y2="${y.toFixed(2)}"></line>`; }).join('');
+  const yText = ys.map((value, index) => { const y = ys.length === 1 ? 18 : 18 + index * (geometry.height - 48) / (ys.length - 1); return `<text class="chart-y-label" x="4" y="${y.toFixed(2)}" dominant-baseline="middle">${escape(value)}</text>`; }).join('');
   const xIndexes = labels.length === 1 ? [0] : labels.length === 2 ? [0, geometry.points.length - 1] : [0, Math.floor((geometry.points.length - 1) / 2), geometry.points.length - 1];
   const xText = labels.map((label, index) => `<text class="chart-x-label" text-anchor="${index === 0 ? 'start' : index === labels.length - 1 ? 'end' : 'middle'}" x="${geometry.points[xIndexes[index]!]!.x.toFixed(2)}" y="${geometry.height - 4}">${escape(label)}</text>`).join('');
-  const line = geometry.points.length > 1 ? `<polyline class="chart-line" points="${polyline}"></polyline>` : '';
-  return `<svg class="portfolio-chart" viewBox="0 0 ${geometry.width} ${geometry.height}" role="img" aria-label="${escape(config.title)}" data-chart-kind="${config.unit}"><title>${escape(config.title)}</title><desc>${escape(config.summary)}</desc>${guides}<line class="chart-crosshair" data-chart-crosshair x1="0" x2="0" y1="0" y2="${geometry.height - 26}" hidden></line>${line}${circles}${yText}${xText}</svg><div class="chart-tooltip" data-chart-tooltip hidden></div>`;
+  const line = geometry.points.length > 1 ? `<polygon class="chart-area" points="${geometry.points[0]!.x.toFixed(2)},${geometry.height - 30} ${polyline} ${geometry.points.at(-1)!.x.toFixed(2)},${geometry.height - 30}"></polygon><polyline class="chart-line" points="${polyline}"></polyline>` : '';
+  return `<svg class="portfolio-chart" viewBox="0 0 ${geometry.width} ${geometry.height}" role="img" aria-label="${escape(config.title)}" data-chart-kind="${config.unit}" data-single-point="${config.points.length === 1}"><title>${escape(config.title)}</title><desc>${escape(config.summary)}</desc>${guides}<line class="chart-crosshair" data-chart-crosshair x1="0" x2="0" y1="18" y2="${geometry.height - 30}" hidden></line>${line}${circles}${yText}${xText}</svg><div class="chart-tooltip" data-chart-tooltip hidden></div>`;
 }
 
 export function nearestChartPoint(points: readonly { readonly x: number; readonly timestamp: number; readonly value: string }[], x: number): number | null {

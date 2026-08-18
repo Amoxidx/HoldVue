@@ -11,40 +11,51 @@
   <body>
     <main class="shell">
       <header class="topbar">
-        <img class="brand-icon" src="holdvue-icon.png" alt="" aria-hidden="true">
-        <span class="wordmark">HoldVue</span>
-        <span class="status" data-status aria-live="polite" data-i18n="status.ready">Lokal bereit</span>
-        <button type="button" class="icon-button" data-open-settings data-i18n-aria-label="settings.title">⚙</button>
+        <div class="brand-lockup">
+          <img class="brand-icon" src="holdvue-icon.png" alt="" aria-hidden="true">
+          <div class="brand-copy"><span class="wordmark">HoldVue</span><span class="brand-caption">Local portfolio</span></div>
+        </div>
+        <div class="topbar-actions">
+          <span class="status" data-status aria-live="polite" data-i18n="status.ready">Lokal bereit</span>
+          <button type="button" class="icon-button settings-button" data-open-settings data-i18n-aria-label="settings.title"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.25A3.75 3.75 0 1 0 12 15.75 3.75 3.75 0 0 0 12 8.25Zm8 3.75-2.02-.92a6.3 6.3 0 0 0-.55-1.34l.77-2.08-1.86-1.86-2.08.77a6.3 6.3 0 0 0-1.34-.55L12 4H9.37l-.92 2.02a6.3 6.3 0 0 0-1.34.55L5.03 5.8 3.17 7.66l.77 2.08a6.3 6.3 0 0 0-.55 1.34L1.37 12v2.63l2.02.92c.14.47.32.92.55 1.34l-.77 2.08 1.86 1.86 2.08-.77c.42.23.87.41 1.34.55l.92 2.02H12l.92-2.02c.47-.14.92-.32 1.34-.55l2.08.77 1.86-1.86-.77-2.08c.23-.42.41-.87.55-1.34l2.02-.92V12Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35"/></svg></button>
+        </div>
       </header>
       <section class="hero portfolio-hero" aria-labelledby="title">
-        <p class="eyebrow" data-i18n="hero.eyebrow">LOCAL-FIRST PORTFOLIO</p>
-        <h1 id="title" data-i18n="hero.title">Dein Portfolio bleibt lokal.</h1>
-        <p class="portfolio-total" data-portfolio-total>—</p>
-        <p class="portfolio-day" data-portfolio-day>—</p>
-        <div class="portfolio-coverage" aria-live="polite"><strong data-portfolio-valued>0/0</strong> <span data-i18n="portfolio.valued">bewertet</span><span class="sync-dot" aria-hidden="true"> · </span><span data-sync-summary>Noch keine Provider konfiguriert</span></div>
-        <div class="currency-switch" role="group" aria-label="Currency"><button type="button" class="secondary" data-currency-switch="EUR" aria-pressed="true">EUR</button><button type="button" class="secondary" data-currency-switch="USD" aria-pressed="false">USD</button></div>
+        <div class="hero-intro">
+          <p class="eyebrow" data-i18n="hero.eyebrow">LOCAL-FIRST PORTFOLIO</p>
+          <h1 id="title" data-i18n="hero.title">Dein Portfolio bleibt lokal.</h1>
+          <p class="hero-lede" data-i18n="hero.lede">Öffentliche Wallet-Adressen werden nur lokal gespeichert. Es werden niemals Seeds oder private Schlüssel abgefragt.</p>
+        </div>
+        <div class="balance-panel" aria-label="Portfolio-Status" data-i18n-aria-label="portfolio.aria">
+          <div class="balance-heading"><span data-i18n="hero.total">Gesamtwert</span><div class="currency-switch" role="group" aria-label="Currency"><button type="button" class="secondary" data-currency-switch="EUR" aria-pressed="true">EUR</button><button type="button" class="secondary" data-currency-switch="USD" aria-pressed="false">USD</button></div></div>
+          <p class="portfolio-total" data-portfolio-total>—</p>
+          <p class="portfolio-day" data-portfolio-day>—</p>
+          <div class="portfolio-coverage" aria-live="polite"><strong data-portfolio-valued>0/0</strong> <span data-i18n="portfolio.valued">bewertet</span><span class="sync-dot" aria-hidden="true"> · </span><span data-sync-summary>Noch keine Provider konfiguriert</span></div>
+        </div>
       </section>
       <section class="dashboard-card portfolio-card" aria-labelledby="portfolio-title">
-        <div class="section-heading"><div><p class="eyebrow" data-i18n="portfolio.eyebrow">PORTFOLIO</p><h2 id="portfolio-title" data-i18n="portfolio.title">Portfolio</h2><p class="section-copy" data-i18n="portfolio.copy">Werte und Preise werden lokal aufgebaut.</p></div><div class="section-actions"><button type="button" class="secondary" data-refresh data-i18n="button.refresh">Jetzt synchronisieren</button></div></div>
-        <div class="chart-shell" data-portfolio-chart tabindex="0" role="group" aria-label="Portfolio value chart"><div class="chart-toolbar" role="group" aria-label="Chart range"><button type="button" class="range-button active" data-portfolio-range="1D" aria-pressed="true">1T</button><button type="button" class="range-button" data-portfolio-range="7D" aria-pressed="false">7T</button><button type="button" class="range-button" data-portfolio-range="1M" aria-pressed="false">1M</button><button type="button" class="range-button" data-portfolio-range="1Y" aria-pressed="false">1J</button><button type="button" class="range-button" data-portfolio-range="MAX" aria-pressed="false">MAX</button></div><div data-portfolio-chart-content></div><p class="chart-range-summary" data-portfolio-range-summary></p></div>
-        <div class="portfolio-toolbar" role="group" aria-label="Portfolio sorting"><span data-i18n="portfolio.sort">Sortieren</span><button type="button" class="range-button active" data-portfolio-sort="size" aria-pressed="true" data-i18n="portfolio.sortSize">Größe</button><button type="button" class="range-button" data-portfolio-sort="gainers" aria-pressed="false" data-i18n="portfolio.sortGainers">Gewinner</button><button type="button" class="range-button" data-portfolio-sort="losers" aria-pressed="false" data-i18n="portfolio.sortLosers">Verlierer</button></div>
+        <div class="section-heading"><div><p class="eyebrow" data-i18n="portfolio.eyebrow">PORTFOLIO</p><h2 id="portfolio-title" data-i18n="portfolio.title">Portfolio</h2><p class="section-copy" data-i18n="portfolio.copy">Werte und Preise werden lokal aufgebaut.</p></div><div class="section-actions"><button type="button" class="secondary action-button" data-refresh><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 8a7.5 7.5 0 1 0 .2 7.5M19 8V3m0 5h-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg><span data-i18n="button.refresh">Jetzt synchronisieren</span></button></div></div>
+        <div class="chart-shell portfolio-chart-shell" data-portfolio-chart tabindex="0" role="group" aria-label="Portfolio value chart"><div class="chart-header"><div><span class="chart-label" data-i18n="portfolio.history">Portfolioverlauf</span><p class="chart-range-summary" data-portfolio-range-summary></p></div><div class="chart-toolbar" role="group" aria-label="Chart range"><button type="button" class="range-button active" data-portfolio-range="1D" aria-pressed="true">1T</button><button type="button" class="range-button" data-portfolio-range="7D" aria-pressed="false">7T</button><button type="button" class="range-button" data-portfolio-range="1M" aria-pressed="false">1M</button><button type="button" class="range-button" data-portfolio-range="1Y" aria-pressed="false">1J</button><button type="button" class="range-button" data-portfolio-range="MAX" aria-pressed="false">MAX</button></div></div><div class="chart-canvas" data-portfolio-chart-content></div></div>
+        <div class="portfolio-toolbar"><div class="sort-control" role="group" aria-label="Portfolio sorting"><span data-i18n="portfolio.sort">Sortieren</span><button type="button" class="range-button active" data-portfolio-sort="size" aria-pressed="true" data-i18n="portfolio.sortSize">Größe</button><button type="button" class="range-button" data-portfolio-sort="gainers" aria-pressed="false" data-i18n="portfolio.sortGainers">Gewinner</button><button type="button" class="range-button" data-portfolio-sort="losers" aria-pressed="false" data-i18n="portfolio.sortLosers">Verlierer</button></div><div class="asset-list-heading"><span data-i18n="portfolio.assets">Assets</span><span data-i18n="portfolio.unitPrice">Stückpreis</span><span>24H</span><span data-i18n="portfolio.value">Wert</span><span aria-hidden="true"></span></div></div>
         <div class="asset-list" data-asset-list aria-live="polite"></div>
         <section class="hidden-assets" data-hidden-assets hidden aria-labelledby="hidden-assets-title"><h3 id="hidden-assets-title" data-i18n="portfolio.hidden">Ausgeblendete Assets</h3><div data-hidden-asset-list></div></section>
       </section>
-      <section class="dashboard-card" aria-labelledby="wallets-title">
+      <div class="management-grid">
+      <section class="dashboard-card management-card" aria-labelledby="wallets-title">
         <div class="section-heading">
         <div><p class="eyebrow" data-i18n="wallet.eyebrow">WALLETS / WALLET-QUELLEN</p><h2 id="wallets-title" data-i18n="wallet.title">Wallets</h2><p class="section-copy" data-i18n="wallet.copy">Verwalte öffentliche Adressen und Extended Public Keys. Synchronisierung bleibt providerabhängig; keine NFTs.</p><p class="field-help" data-sync-summary aria-live="polite">Noch keine Provider konfiguriert</p></div>
-          <div class="section-actions"><button type="button" class="secondary" data-refresh data-i18n="button.refresh">Jetzt synchronisieren</button><button type="button" class="primary" data-add-wallet data-i18n="wallet.add">Wallet hinzufügen</button></div>
+          <div class="section-actions"><button type="button" class="primary action-button" data-add-wallet><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"/></svg><span data-i18n="wallet.add">Wallet hinzufügen</span></button></div>
         </div>
         <div class="wallet-list" data-wallet-list aria-live="polite"></div>
       </section>
-      <section class="dashboard-card" aria-labelledby="holdings-title">
+      <section class="dashboard-card management-card" aria-labelledby="holdings-title">
         <div class="section-heading">
           <div><p class="eyebrow" data-i18n="holdings.eyebrow">MANUELLE BESTÄNDE</p><h2 id="holdings-title" data-i18n="holdings.title">Aktien und ETFs</h2><p class="section-copy" data-i18n="holdings.copy">Wähle ein Instrument aus der Provider-Suche und hinterlege nur die Stückzahl. Preise werden hier nicht erfunden.</p></div>
-          <div class="section-actions"><button type="button" class="primary" data-add-holding data-i18n="holdings.add">Aktie/ETF hinzufügen</button></div>
+          <div class="section-actions"><button type="button" class="primary action-button" data-add-holding><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"/></svg><span data-i18n="holdings.add">Aktie/ETF hinzufügen</span></button></div>
         </div>
         <div class="holding-list" data-holding-list aria-live="polite"></div>
       </section>
+      </div>
       <span class="sr-only" data-position-count>0</span>
       <footer><span data-i18n="footer.local">HoldVue · lokal gespeichert</span><span data-footer-summary>EUR · DE · Dunkel</span></footer>
     </main>
