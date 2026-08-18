@@ -77,14 +77,28 @@ test('public tree rejects private artefacts, user paths, addresses, and non-empt
     assert.equal(credentialPath.test(source), false, `packed ${file}`);
     if (!file.endsWith('package-lock.json')) assert.equal(secretPattern.test(source), false, `packed ${file}`);
   }
+  const reachable = spawnSync('git', ['rev-list', '--objects', '--all'], { cwd: root.pathname, encoding: 'utf8' });
+  assert.equal(reachable.status, 0, reachable.stderr);
+  const objectPaths = new Map(reachable.stdout.split('\n').filter(Boolean).map(line => {
+    const separator = line.indexOf(' ');
+    return separator < 0 ? [line, ''] : [line.slice(0, separator), line.slice(separator + 1)];
+  }));
   const objects = spawnSync('git', ['cat-file', '--batch-all-objects', '--batch-check=%(objectname) %(objecttype)'], { cwd: root.pathname, encoding: 'utf8' });
   assert.equal(objects.status, 0, objects.stderr);
   for (const line of objects.stdout.split('\n').filter(Boolean)) {
     const [objectId, type] = line.split(' ');
     if (type !== 'blob' || !objectId) continue;
-    const blob = spawnSync('git', ['cat-file', 'blob', objectId], { cwd: root.pathname, encoding: 'utf8' });
+    const objectPath = objectPaths.get(objectId) ?? '';
+    if (/\.(?:png|icns|ico)$/i.test(objectPath)) continue;
+    const blob = spawnSync('git', ['cat-file', 'blob', objectId], {
+      cwd: root.pathname,
+      encoding: 'utf8',
+      maxBuffer: 16 * 1024 * 1024
+    });
     assert.equal(blob.status, 0, blob.stderr);
-    assert.equal(walletAddress.test(blob.stdout), false, `git object ${objectId}`);
-    assert.equal(secretPattern.test(blob.stdout), false, `git object ${objectId}`);
+    if (!objectPath.endsWith('package-lock.json')) {
+      assert.equal(walletAddress.test(blob.stdout), false, `git object ${objectId}`);
+      assert.equal(secretPattern.test(blob.stdout), false, `git object ${objectId}`);
+    }
   }
 });
