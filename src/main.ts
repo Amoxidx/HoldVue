@@ -41,7 +41,7 @@ export function createFmpKeyGetter(storage: StateStorage, secrets: SecretStore):
 export function buildRuntimePaths(moduleUrl: string): { preload: string; renderer: string; icon: string } {
   const moduleDirectory = dirname(fileURLToPath(moduleUrl));
   return {
-    preload: join(moduleDirectory, 'preload.js'),
+    preload: join(moduleDirectory, 'preload.cjs'),
     renderer: join(moduleDirectory, 'renderer', 'index.html'),
     icon: join(moduleDirectory, 'renderer', 'holdvue-icon.png')
   };

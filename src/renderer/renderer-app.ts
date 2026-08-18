@@ -2,7 +2,7 @@ import type { AddressDetection, AddressMatch } from '../shared/addresses.ts';
 import type { Holding, Instrument, PortfolioState, Settings, WalletFamily, WalletSource } from '../shared/state.ts';
 import { scaledToDecimal } from '../shared/pricing.ts';
 import type { InstrumentCandidate } from '../shared/market.ts';
-import type { HoldVueApi } from '../preload.ts';
+import type { HoldVueApi } from '../preload-api.d.ts';
 import { buildPortfolioViewModel, formatPortfolioValue, rangeWindow, selectHistoryPoints, sortPortfolioAssets, type PortfolioAssetView, type PortfolioRange, type PortfolioSort } from '../shared/portfolio.ts';
 import { bindChart } from './chart.ts';
 

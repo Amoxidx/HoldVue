@@ -1,26 +1,27 @@
 {
   "name": "holdvue",
   "productName": "HoldVue",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "author": "HoldVue contributors",
   "description": "Local-first portfolio observation shell for macOS and Windows",
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json && node scripts/copy-renderer.mjs",
+    "build": "node scripts/clean-dist.mjs && tsc -p tsconfig.json && node scripts/copy-renderer.mjs",
     "icons": "node scripts/create-icons.mjs",
     "preview": "npm run build && electron scripts/preview.mjs",
     "audit:package": "node scripts/audit-package.mjs",
+    "smoke:package": "node scripts/smoke-package.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test --test-concurrency=1 test/*.test.js",
-    "coverage": "c8 --all --include='src/**/*.ts' --exclude='src/shared/ports.ts' --check-coverage --lines=100 --branches=100 --functions=100 --statements=100 --reporter=text node --test --test-concurrency=1 test/*.test.js",
+    "test": "npm run build && node --test --test-concurrency=1 test/*.test.js",
+    "coverage": "npm run build && c8 --all --include='src/**/*.ts' --include='src/**/*.cts' --include='dist/preload.cjs' --exclude='src/**/*.d.ts' --exclude='src/shared/ports.ts' --check-coverage --lines=100 --branches=100 --functions=100 --statements=100 --reporter=text node --test --test-concurrency=1 test/*.test.js",
     "check": "npm run typecheck && npm test && npm run coverage && npm run build",
     "start": "npm run build && electron .",
-    "package:mac": "npm run check && npm run icons && electron-builder --mac --universal --publish never",
-    "package:mac:x64": "npm run check && npm run icons && electron-builder --mac --x64 --publish never",
-    "package:mac:arm64": "npm run check && npm run icons && electron-builder --mac --arm64 --publish never",
-    "package:win": "npm run check && npm run icons && electron-builder --win --x64 --publish never"
+    "package:mac": "npm run check && npm run icons && electron-builder --mac --universal --publish never && npm run smoke:package -- release/mac-universal/HoldVue.app/Contents/Resources/app.asar",
+    "package:mac:x64": "npm run check && npm run icons && electron-builder --mac --x64 --publish never && npm run smoke:package -- release/mac/HoldVue.app/Contents/Resources/app.asar",
+    "package:mac:arm64": "npm run check && npm run icons && electron-builder --mac --arm64 --publish never && npm run smoke:package -- release/mac-arm64/HoldVue.app/Contents/Resources/app.asar",
+    "package:win": "npm run check && npm run icons && electron-builder --win --x64 --publish never && npm run smoke:package -- release/win-unpacked/resources/app.asar"
   },
   "engines": {
     "node": ">=22"
