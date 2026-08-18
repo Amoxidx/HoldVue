@@ -25,6 +25,16 @@ async function files(directory) {
   return result;
 }
 
+function runNpm(args) {
+  const npmCli = process.env.npm_execpath;
+  if (npmCli) return spawnSync(process.execPath, [npmCli, ...args], { cwd: rootPath, encoding: 'utf8' });
+  return spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, {
+    cwd: rootPath,
+    encoding: 'utf8',
+    shell: process.platform === 'win32'
+  });
+}
+
 test('public tree rejects private artefacts, user paths, addresses, and non-empty defaults', async () => {
   const contents = await files(rootPath);
   const forbiddenArtifact = /\.(?:pem|key|p12|pfx|sqlite|db|tgz|zip|dmg)$/i;
@@ -57,9 +67,9 @@ test('public tree rejects private artefacts, user paths, addresses, and non-empt
   const fixture = await readFile(join(rootPath, 'test', 'fixtures', 'synthetic-state.json'), 'utf8');
   assert.match(fixture, /schemaVersion/);
   assert.doesNotMatch(fixture, /solana|(?:wallet|account)?address\s*:/i);
-  const build = spawnSync('npm', ['run', 'build'], { cwd: rootPath, encoding: 'utf8' });
+  const build = runNpm(['run', 'build']);
   assert.equal(build.status, 0, build.stderr);
-  const pack = spawnSync('npm', ['pack', '--dry-run', '--json'], { cwd: rootPath, encoding: 'utf8' });
+  const pack = runNpm(['pack', '--dry-run', '--json']);
   assert.equal(pack.status, 0, pack.stderr);
   const packReport = JSON.parse(pack.stdout)[0];
   const packFiles = packReport.files.map(file => file.path);
