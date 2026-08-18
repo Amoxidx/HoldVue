@@ -9,7 +9,7 @@ if (!archive) {
   process.exit(2);
 }
 
-const entries = listPackage(archive);
+const entries = listPackage(archive).map(entry => entry.replaceAll('\\', '/'));
 assert.equal(entries.includes('/dist/preload.cjs'), true, 'packaged CommonJS preload is missing');
 assert.equal(entries.includes('/dist/preload.js'), false, 'stale ESM preload must not be packaged');
 assert.equal(entries.includes('/dist/renderer/index.html'), true, 'packaged renderer is missing');
