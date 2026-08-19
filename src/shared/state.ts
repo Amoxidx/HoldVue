@@ -90,7 +90,7 @@ export interface Position {
 
 export type InstrumentType = 'stock' | 'etf';
 
-/** Canonical metadata returned by an explicitly configured market provider. */
+/** Canonical metadata returned by the immutable local catalog or a configured market provider. */
 export interface Instrument {
   readonly schemaVersion: 4;
   readonly id: string;

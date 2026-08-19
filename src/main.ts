@@ -12,7 +12,7 @@ import { createJsonRpcPort, createScanCoordinator } from './shared/scanner.ts';
 import { createFetchTransport } from './shared/transport.ts';
 import { createSyncCoordinator } from './shared/sync.ts';
 import { createSafeStorageSecretStore, JsonEncryptedBlobStore, type SafeStorageLike } from './shared/secrets.ts';
-import { createFmpSearchAdapter } from './shared/market.ts';
+import { createCombinedSearchAdapter, createFmpSearchAdapter, createLocalCatalogSearchAdapter } from './shared/market.ts';
 import { createCoinGeckoPriceAdapter, createFmpQuoteAdapter, createPricingCoordinator } from './shared/pricing.ts';
 import type { StateStorage } from './shared/storage.ts';
 import type { SecretStore } from './shared/secrets.ts';
@@ -67,10 +67,10 @@ export function startMain(load: ElectronLoader = loadRuntimeModule, factory: Com
   const storage = new JsonFileStateStorage(join(electron.app.getPath('userData'), 'holdvue-state.json'));
   const secrets = createSafeStorageSecretStore(electron.safeStorage, new JsonEncryptedBlobStore(join(electron.app.getPath('userData'), 'holdvue-secrets.json')));
   const getFmpKey = createFmpKeyGetter(storage, secrets);
-  const instrumentSearch = createFmpSearchAdapter({
-    http: transport,
-    getApiKey: getFmpKey
-  });
+  const instrumentSearch = createCombinedSearchAdapter([
+    createLocalCatalogSearchAdapter(),
+    createFmpSearchAdapter({ http: transport, getApiKey: getFmpKey })
+  ]);
   const nativeCoordinator = createScanCoordinator(4);
   const etherscanRateLimiter = createEtherscanRateLimiter();
   const pricingCoordinator = createPricingCoordinator({

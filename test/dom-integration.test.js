@@ -268,11 +268,13 @@ test('real DOM supports offline instrument search, exact holdings CRUD, keyboard
   search.value = 'second';
   search.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
   await new Promise(resolve => setTimeout(resolve, 315));
-  pending.get('second')(success([instrument, { ...instrument, symbol: 'STK', providerSymbol: 'STK@SYN', name: 'Synthetic Stock', type: 'stock' }]));
+  pending.get('second')(success([instrument, { ...instrument, providerId: 'holdvue.catalog', symbol: 'STK', providerSymbol: 'STK@SYN', name: 'Synthetic Stock', type: 'stock' }]));
   await flush();
   pending.get('first')(success([{ ...instrument, symbol: 'OLD', providerSymbol: 'OLD@SYN' }]));
   await flush();
   assert.equal(documentRef.querySelectorAll('[data-instrument-index]').length, 2);
+  assert.match(documentRef.querySelector('[data-instrument-suggestions]').textContent, /LOKAL/);
+  assert.equal(documentRef.querySelector('[data-instrument-status]').textContent, '');
   documentRef.querySelector('[data-instrument-index]').setAttribute('data-instrument-index', '999');
   documentRef.querySelector('[data-instrument-index]').dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
   documentRef.querySelector('[data-instrument-index]').setAttribute('data-instrument-index', '0');
@@ -351,7 +353,7 @@ test('real DOM supports offline instrument search, exact holdings CRUD, keyboard
   documentRef.querySelector('[data-instrument-search]').value = 'empty';
   documentRef.querySelector('[data-instrument-search]').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
   await new Promise(resolve => setTimeout(resolve, 315));
-  assert.match(documentRef.querySelector('[data-instrument-status]').textContent, /Noch keine/i);
+  assert.match(documentRef.querySelector('[data-instrument-status]').textContent, /Keine passenden/i);
   documentRef.querySelector('[data-holding-cancel]').click();
   documentRef.querySelector('[data-add-holding]').click();
   documentRef.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));

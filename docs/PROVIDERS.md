@@ -89,7 +89,7 @@ per-chain `errorCode: 'aborted'` result without starting RPC work.
 | Cardano native + fungible assets | implemented/configured through Koios | strict response/fungibility checks; Blockfrost is not required |
 | Crypto market prices | implemented/configured through CoinGecko keyless routes | supported mainnet native/known contracts only; testnet/devnet/unsupported platforms remain unpriced; no provider key or AI/LLM-token dependency |
 | Stock/ETF market prices | implemented/configured through FMP batch quote + official FX quote | optional encrypted provider key and tier required; missing FX/quotes remain partial; no price inference |
-| Instrument search | implemented/configured with FMP key | official `search-symbol` + `search-name`; every add is profile-verified for symbol/exchange/active status and stock-vs-ETF classification |
+| Instrument search | implemented keylessly for the bundled local catalog; optionally expanded with FMP | local entries resolve to immutable canonical metadata; FMP uses official `search-symbol` + `search-name` and profile-verifies every FMP add |
 | NFTs | not supported | no state or scanner type |
 
 The application shell exposes narrow Etherscan and FMP password fields only for
@@ -101,8 +101,11 @@ routes with an `apikey` header. Search rows may omit type; the selected row is
 not persisted until the official [Company Profile
 classification](https://site.financialmodelingprep.com/developer/docs/changelog)
 returns complete matching symbol/exchange metadata, `isActivelyTrading: true`,
-and either `isEtf: true` or `isEtf: false` with `isFund: false`. Unauthorized,
-rate-limited, malformed, or unclassified responses are structured failures.
+and either `isEtf: true` or `isEtf: false` with `isFund: false`. Before that
+optional provider runs, HoldVue searches a bounded checked-in catalog locally;
+its entries are immutable, contain no user data, and resolve only by their exact
+catalog identity. Unauthorized, rate-limited, malformed, or unclassified FMP
+responses are structured failures and do not remove valid local suggestions.
 The provider does not supply prices in this milestone and no price is inferred.
 It starts a coordinator only with injected composition,
 and the default settings have no enabled provider/endpoints, so a fresh install

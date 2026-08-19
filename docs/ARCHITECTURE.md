@@ -10,7 +10,9 @@ behind explicit ports.
 contains typed `WalletSource` unions, typed fungible/native `Position` values,
 exact base-unit strings, sync status, settings, custom-chain definitions,
 provider references, canonical `Instrument` metadata, and exact manual
-`Holding` quantities in hundredths. There is no NFT variant and no secret field.
+`Holding` quantities in hundredths. Canonical manual instruments may originate
+from the immutable bundled catalog or an explicitly configured provider. There
+is no NFT variant and no secret field.
 `parsePortfolioState` migrates version 1/2/3/4 or an empty/malformed file
 deterministically to a sanitized version-5 state. Invalid
 wallets and untyped legacy positions are discarded rather than guessed.

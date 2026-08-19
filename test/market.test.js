@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createFmpSearchAdapter, FMP_PROFILE_URL, FMP_SEARCH_NAME_URL, FMP_SEARCH_SYMBOL_URL } from '../src/shared/market.ts';
+import { createCombinedSearchAdapter, createFmpSearchAdapter, createLocalCatalogSearchAdapter, FMP_PROFILE_URL, FMP_SEARCH_NAME_URL, FMP_SEARCH_SYMBOL_URL, LOCAL_CATALOG_PROVIDER_ID } from '../src/shared/market.ts';
 import { TransportError } from '../src/shared/transport.ts';
 
 function httpFixture(responses) {
@@ -34,6 +34,67 @@ const searchRows = [
   { symbol: '', name: 'Missing symbol', currency: 'USD', exchangeShortName: 'SYN' },
   null
 ];
+
+test('local catalog searches common instruments without a provider key and resolves canonical metadata', async () => {
+  const adapter = createLocalCatalogSearchAdapter();
+  const world = await adapter.search('msci wo');
+  assert.equal(world.ok, true);
+  if (!world.ok) return;
+  assert.equal(world.partial, false);
+  assert.equal(world.value.length >= 3, true);
+  assert.equal(world.value[0].providerId, LOCAL_CATALOG_PROVIDER_ID);
+  assert.match(world.value[0].name, /MSCI World/i);
+  const exact = await adapter.search('AAPL');
+  assert.equal(exact.ok && exact.value[0].symbol, 'AAPL');
+  assert.equal((await adapter.search('V')).ok, true);
+  assert.equal((await adapter.search('S')).ok, true);
+  assert.equal((await adapter.search('iShares')).ok, true);
+  assert.equal((await adapter.search('AAP')).ok, true);
+  assert.equal((await adapter.search('Apple')).ok, true);
+  assert.equal((await adapter.search('World')).ok, true);
+  assert.equal((await adapter.search('world etf')).ok, true);
+  assert.equal((await adapter.search('all world')).ok, true);
+  assert.equal((await adapter.search('not-in-catalog')).ok, true);
+  assert.equal((await adapter.search('')).code, 'invalid-query');
+  assert.equal((await adapter.search(4)).code, 'invalid-query');
+  assert.equal((await adapter.search('x'.repeat(121))).code, 'invalid-query');
+  const limited = await createLocalCatalogSearchAdapter(1).search('msci');
+  assert.equal(limited.ok && limited.value.length, 1);
+  const defaulted = await createLocalCatalogSearchAdapter(0).search('msci');
+  assert.equal(defaulted.ok && defaulted.value.length > 1, true);
+  const selected = world.value[0];
+  const canonical = await adapter.resolve({ ...selected, name: 'Tampered synthetic name' });
+  assert.equal(canonical.name, selected.name);
+  assert.equal((await adapter.resolve({ ...selected, providerId: 'other.provider' })).code, 'unsupported');
+  assert.equal((await adapter.resolve({ ...selected, providerSymbol: 'MISSING@X' })).code, 'unsupported');
+});
+
+test('combined search merges catalog and optional providers without making a missing key a dead end', async () => {
+  const local = createLocalCatalogSearchAdapter();
+  const duplicate = { providerId: 'fmp.market', providerSymbol: 'AAPL@NASDAQ', symbol: 'AAPL', name: 'Remote Apple', exchange: 'NASDAQ', currency: 'USD', type: 'stock' };
+  const remote = { async search() { return { ok: true, value: [duplicate], partial: true }; }, async resolve(candidate) { return candidate.providerId === 'fmp.market' ? { ...candidate, type: 'stock' } : { ok: false, code: 'unsupported', message: 'synthetic' }; } };
+  const combined = createCombinedSearchAdapter([local, remote], 1);
+  const merged = await combined.search('apple');
+  assert.equal(merged.ok, true);
+  if (merged.ok) { assert.equal(merged.value.length, 1); assert.equal(merged.value[0].providerId, LOCAL_CATALOG_PROVIDER_ID); assert.equal(merged.partial, true); }
+  const unconfigured = { async search() { return { ok: false, code: 'unconfigured', message: 'synthetic' }; }, async resolve() { return { ok: false, code: 'unconfigured', message: 'synthetic' }; } };
+  const keyless = await createCombinedSearchAdapter([local, unconfigured], 0).search('msci wo');
+  assert.equal(keyless.ok, true);
+  if (keyless.ok) assert.equal(keyless.partial, false);
+  const rate = { ...unconfigured, async search() { return { ok: false, code: 'rate-limited', message: 'synthetic' }; } };
+  const partial = await createCombinedSearchAdapter([local, rate]).search('apple');
+  assert.equal(partial.ok && partial.partial, true);
+  const aborted = { ...unconfigured, async search() { return { ok: false, code: 'aborted', message: 'synthetic' }; } };
+  assert.equal((await createCombinedSearchAdapter([local, aborted]).search('apple')).code, 'aborted');
+  assert.equal((await createCombinedSearchAdapter([unconfigured, rate]).search('none')).code, 'rate-limited');
+  assert.equal((await createCombinedSearchAdapter([unconfigured]).search('none')).code, 'unconfigured');
+  assert.equal((await createCombinedSearchAdapter([]).search('none')).code, 'unconfigured');
+  const localCandidate = (await local.search('apple')).value[0];
+  assert.equal((await combined.resolve(localCandidate)).providerId, LOCAL_CATALOG_PROVIDER_ID);
+  assert.equal((await combined.resolve(duplicate)).providerId, 'fmp.market');
+  assert.equal((await createCombinedSearchAdapter([local, unconfigured]).resolve(duplicate)).code, 'unconfigured');
+  assert.equal((await createCombinedSearchAdapter([local]).resolve(duplicate)).code, 'unsupported');
+});
 
 test('FMP search combines official symbol/name schemas, ranks and deduplicates safely', async () => {
   const fixture = httpFixture({ [new URL(FMP_SEARCH_SYMBOL_URL).pathname]: searchRows, [new URL(FMP_SEARCH_NAME_URL).pathname]: searchRows });
