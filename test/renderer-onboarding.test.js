@@ -21,7 +21,7 @@ class FakeElement {
 function syntheticWallet(family, id, address, options) { return { schemaVersion: 2, id, label: id, family, address, enabled: true, createdAt: 1, options }; }
 
 function fixture() {
-  const selectors = ['[data-status]', '[data-position-count]', '[data-wallet-list]', '[data-settings-wallet-list]', '[data-wallet-dialog]', '[data-wallet-form]', '[data-delete-dialog]', '[data-settings-dialog]', '[data-wallet-error]', '[data-add-wallet]', '[data-open-settings]', '[data-wallet-address]', '[data-wallet-label]', '[data-wallet-family]', '[data-wallet-enabled]', '[data-wallet-all-evm]', '[data-evm-options]', '[data-evm-chains]', '[data-solana-options]', '[data-wallet-solana-network]', '[data-wallet-detection]', '[data-wallet-cancel]', '[data-delete-cancel]', '[data-delete-confirm]', '[data-delete-wallet-label]', '[data-settings-close]', '[data-setting-currency]', '[data-setting-locale]', '[data-setting-theme]', '[data-setting-scheduler]', '[data-setting-spam]', '[data-setting-hidden-spam]'];
+  const selectors = ['[data-status]', '[data-position-count]', '[data-wallet-list]', '[data-settings-wallet-list]', '[data-wallet-dialog]', '[data-wallet-form]', '[data-delete-dialog]', '[data-settings-dialog]', '[data-wallet-error]', '[data-add-wallet]', '[data-open-settings]', '[data-wallet-address]', '[data-wallet-label]', '[data-wallet-family]', '[data-wallet-enabled]', '[data-wallet-all-evm]', '[data-evm-options]', '[data-evm-chains]', '[data-wallet-detection]', '[data-wallet-cancel]', '[data-delete-cancel]', '[data-delete-confirm]', '[data-delete-wallet-label]', '[data-settings-close]', '[data-setting-currency]', '[data-setting-locale]', '[data-setting-theme]', '[data-setting-scheduler]', '[data-setting-spam]', '[data-setting-hidden-spam]'];
   const documentRef = { documentElement: { lang: 'de', dataset: {} }, activeElement: null, elements: new Map(), listeners: new Map(), querySelector(selector) { return this.elements.get(selector) ?? null; }, addEventListener(type, callback) { const list = this.listeners.get(type) ?? []; list.push(callback); this.listeners.set(type, list); }, removeEventListener(type, callback) { this.listeners.set(type, (this.listeners.get(type) ?? []).filter(item => item !== callback)); }, dispatch(type, extra = {}) { for (const callback of this.listeners.get(type) ?? []) callback({ key: extra.key, preventDefault() {} }); } };
   for (const selector of selectors) documentRef.elements.set(selector, new FakeElement(documentRef));
   documentRef.elements.get('[data-wallet-dialog]').hidden = true;
@@ -89,10 +89,10 @@ test('renderer wallet onboarding, management, settings, copy, confirmation, keyb
   documentRef.elements.get('[data-wallet-label]').value = 'Sol synthetic';
   documentRef.elements.get('[data-wallet-address]').dispatch('change');
   await Promise.resolve();
-  documentRef.elements.get('[data-wallet-solana-network]').value = 'testnet';
   documentRef.elements.get('[data-wallet-form]').dispatch('submit');
   await Promise.resolve();
   assert.equal(state.wallets.at(-1).family, 'solana');
+  assert.equal(state.wallets.at(-1).options.network, 'mainnet-beta');
 
   nextFamily = 'bitcoin';
   documentRef.elements.get('[data-add-wallet]').dispatch('click');

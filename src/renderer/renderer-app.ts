@@ -58,7 +58,7 @@ const messages = {
     'portfolio.aria': 'Portfolio-Status', 'portfolio.eyebrow': 'PORTFOLIO', 'portfolio.title': 'Portfolio', 'portfolio.copy': 'Werte und Preise werden lokal aufgebaut.', 'portfolio.assets': 'Assets', 'portfolio.valued': 'bewertet', 'portfolio.unpriced': 'Preis nicht verfügbar', 'portfolio.sort': 'Sortieren', 'portfolio.sortSize': 'Größe', 'portfolio.sortGainers': 'Gewinner', 'portfolio.sortLosers': 'Verlierer', 'portfolio.hidden': 'Ausgeblendete Assets', 'portfolio.hide': 'Asset ausblenden', 'portfolio.restore': 'Wiederherstellen', 'portfolio.showValue': 'Wert anzeigen', 'portfolio.showQuantity': 'Menge anzeigen', 'portfolio.account': 'Konto', 'portfolio.balance': 'Bestand', 'portfolio.chartEmpty': 'Noch keine Historie. Der Verlauf wird lokal aufgebaut.', 'portfolio.chartTooShort': 'Ein Punkt ist vorhanden; weitere Daten werden lokal aufgebaut.', 'portfolio.rangeEmpty': 'Für diesen Zeitraum sind noch keine Daten vorhanden.', 'portfolio.empty': 'Noch keine gehaltenen Assets.', 'portfolio.multipleAccounts': 'Mehrere Konten', 'portfolio.history': 'Portfolioverlauf', 'portfolio.assetPriceHistory': 'Preisverlauf', 'portfolio.unitPrice': 'Stückpreis', 'portfolio.chartRange': 'Zeitraum des Charts',
     'portfolio.value': 'Wert', 'footer.local': 'HoldVue · lokal gespeichert', 'footer.theme.light': 'Hell', 'footer.theme.dark': 'Dunkel',
     'dialog.public': 'ÖFFENTLICHE QUELLE', 'dialog.add': 'Wallet hinzufügen', 'dialog.edit': 'Wallet bearbeiten', 'dialog.copy': 'Nur öffentliche Adresse oder xpub. Keine Seed-Phrase und kein privater Schlüssel.',
-    'field.address': 'Adresse oder Extended Public Key', 'field.label': 'Label / Name', 'field.labelPlaceholder': 'z. B. Hauptwallet', 'field.family': 'Erkannte Familie', 'field.familyEmpty': 'Adresse zuerst prüfen', 'field.evmChains': 'EVM-Chains', 'field.allEvm': 'Alle gängigen Chains automatisch prüfen', 'field.solanaNetwork': 'Solana-Netzwerk', 'field.enabled': 'Aktiv',
+    'field.address': 'Adresse oder Extended Public Key', 'field.label': 'Label / Name', 'field.labelPlaceholder': 'z. B. Hauptwallet', 'field.family': 'Erkannte Familie', 'field.familyEmpty': 'Adresse zuerst prüfen', 'field.evmChains': 'EVM-Chains', 'field.allEvm': 'Alle gängigen Chains automatisch prüfen', 'field.enabled': 'Aktiv',
     'button.close': 'Schließen', 'button.cancel': 'Abbrechen', 'button.save': 'Speichern', 'button.done': 'Fertig', 'button.copy': 'Kopieren', 'button.edit': 'Bearbeiten', 'button.delete': 'Löschen', 'button.detect': 'Adresse prüfen',
     'wallet.addressFor': 'Adresse von', 'wallet.active': 'Aktiv', 'wallet.disabled': 'Pausiert', 'wallet.allChains': 'Alle gängigen Chains', 'wallet.selectedChains': 'Ausgewählte Chains',
     'delete.eyebrow': 'AKTION BESTÄTIGEN', 'delete.title': 'Wallet löschen', 'delete.copy': 'Die Wallet und zugehörige lokale Positionen werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden.',
@@ -74,7 +74,7 @@ const messages = {
     'portfolio.aria': 'Portfolio status', 'portfolio.eyebrow': 'PORTFOLIO', 'portfolio.title': 'Portfolio', 'portfolio.copy': 'Values and prices are built locally over time.', 'portfolio.assets': 'Assets', 'portfolio.valued': 'valued', 'portfolio.unpriced': 'Price unavailable', 'portfolio.sort': 'Sort by', 'portfolio.sortSize': 'Size', 'portfolio.sortGainers': 'Gainers', 'portfolio.sortLosers': 'Losers', 'portfolio.hidden': 'Hidden assets', 'portfolio.hide': 'Hide asset', 'portfolio.restore': 'Restore', 'portfolio.showValue': 'Show value', 'portfolio.showQuantity': 'Show quantity', 'portfolio.account': 'Account', 'portfolio.balance': 'Balance', 'portfolio.chartEmpty': 'No history yet. The local series starts building now.', 'portfolio.chartTooShort': 'One point is available; more local data will follow.', 'portfolio.rangeEmpty': 'No data exists for this range yet.', 'portfolio.empty': 'No held assets yet.', 'portfolio.multipleAccounts': 'Multiple accounts', 'portfolio.history': 'Portfolio history', 'portfolio.assetPriceHistory': 'Price history', 'portfolio.unitPrice': 'Unit price', 'portfolio.chartRange': 'Chart range',
     'portfolio.value': 'Value', 'footer.local': 'HoldVue · stored locally', 'footer.theme.light': 'Light', 'footer.theme.dark': 'Dark',
     'dialog.public': 'PUBLIC SOURCE', 'dialog.add': 'Add wallet', 'dialog.edit': 'Edit wallet', 'dialog.copy': 'Public address or xpub only. No seed phrase or private key.',
-    'field.address': 'Address or extended public key', 'field.label': 'Label / name', 'field.labelPlaceholder': 'e.g. Main wallet', 'field.family': 'Detected family', 'field.familyEmpty': 'Check address first', 'field.evmChains': 'EVM chains', 'field.allEvm': 'Scan all common chains automatically', 'field.solanaNetwork': 'Solana network', 'field.enabled': 'Enabled',
+    'field.address': 'Address or extended public key', 'field.label': 'Label / name', 'field.labelPlaceholder': 'e.g. Main wallet', 'field.family': 'Detected family', 'field.familyEmpty': 'Check address first', 'field.evmChains': 'EVM chains', 'field.allEvm': 'Scan all common chains automatically', 'field.enabled': 'Enabled',
     'button.close': 'Close', 'button.cancel': 'Cancel', 'button.save': 'Save', 'button.done': 'Done', 'button.copy': 'Copy', 'button.edit': 'Edit', 'button.delete': 'Delete', 'button.detect': 'Check address',
     'wallet.addressFor': 'Address for', 'wallet.active': 'Enabled', 'wallet.disabled': 'Disabled', 'wallet.allChains': 'All common chains', 'wallet.selectedChains': 'Selected chains',
     'delete.eyebrow': 'CONFIRM ACTION', 'delete.title': 'Delete wallet', 'delete.copy': 'The wallet and its local positions will be removed. This action cannot be undone.',
@@ -514,7 +514,6 @@ export function createRendererController(documentRef: RendererDocument, api: Hol
     showDetectionState(detectionText(result), 'success');
     clearError();
     const evmOptions = query('[data-evm-options]'); if (evmOptions) evmOptions.hidden = result.family !== 'evm';
-    const solanaOptions = query('[data-solana-options]'); if (solanaOptions) solanaOptions.hidden = result.family !== 'solana';
     setEvmControls();
   };
   const detectInput = async (): Promise<void> => {
@@ -534,7 +533,7 @@ export function createRendererController(documentRef: RendererDocument, api: Hol
   const selectedChainIds = (): number[] => Array.from(query('[data-evm-chains]')?.querySelectorAll?.('input[data-chain-id]') as Iterable<RendererElement> ?? []).filter(input => input.checked).map(input => Number(input.value)).filter(id => Number.isSafeInteger(id) && id > 0);
   const formOptions = (family: WalletFamily): Record<string, unknown> => {
     if (family === 'evm') return { autoScanCommonChains: query('[data-wallet-all-evm]')?.checked !== false, chainIds: selectedChainIds() };
-    if (family === 'solana') return { network: readValue('[data-wallet-solana-network]') };
+    if (family === 'solana') return { network: 'mainnet-beta' };
     if (family === 'bitcoin') return { network: detected?.network, addressType: detected?.kind && bitcoinKinds.has(detected.kind) ? detected.kind : 'address' };
     return { network: detected?.network };
   };
@@ -554,11 +553,9 @@ export function createRendererController(documentRef: RendererDocument, api: Hol
     const enabled = query('[data-wallet-enabled]'); if (enabled) enabled.checked = wallet?.enabled ?? true;
     const allEvm = query('[data-wallet-all-evm]'); if (allEvm) allEvm.checked = wallet?.family === 'evm' ? wallet.options.autoScanCommonChains : true;
     for (const input of queryAll('[data-chain-id]')) input.checked = wallet?.family === 'evm' && !wallet.options.autoScanCommonChains && wallet.options.chainIds.includes(Number(input.value));
-    const solanaNetwork = query('[data-wallet-solana-network]'); if (solanaNetwork && wallet?.family === 'solana') solanaNetwork.value = wallet.options.network;
     const modeText = query('[data-wallet-dialog-title]'); setText(modeText, localized(mode === 'edit' ? 'dialog.edit' : 'dialog.add'));
     showDetectionState(wallet ? detectionText(detected!) : localized('detection.prompt'), wallet ? 'success' : 'idle');
     const evmOptions = query('[data-evm-options]'); if (evmOptions) evmOptions.hidden = wallet?.family !== 'evm';
-    const solanaOptions = query('[data-solana-options]'); if (solanaOptions) solanaOptions.hidden = wallet?.family !== 'solana';
     setEvmControls();
     setDialogOpen(walletDialog, true);
     if (!wallet) address?.focus?.();

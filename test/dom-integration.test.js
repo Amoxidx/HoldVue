@@ -51,6 +51,8 @@ test('real index DOM wires every dialog control, locale, focus, full address and
   assert.equal(documentRef.querySelectorAll('[data-wallet-cancel-close]').length, 1);
   assert.equal(documentRef.querySelectorAll('[data-settings-close]').length, 1);
   assert.equal(documentRef.querySelectorAll('[data-settings-close-icon]').length, 1);
+  assert.equal(documentRef.querySelector('[data-wallet-solana-network]'), null);
+  assert.equal(documentRef.querySelector('[data-solana-options]'), null);
   assert.equal(documentRef.querySelector('.wallet-address').textContent, syntheticEvm);
   assert.match(documentRef.querySelector('[data-wallet-action="copy"]').getAttribute('aria-label'), /Synthetic DOM wallet/);
   const staleDelete = documentRef.querySelector('[data-wallet-action="delete"]');

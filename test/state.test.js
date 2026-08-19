@@ -89,6 +89,7 @@ test('v1 and malformed input migrate deterministically to sanitized v2', () => {
   assert.deepEqual(parsePortfolioState({ schemaVersion: 3, positions: [{ ...integerPosition, id: 'over-precision', decimals: 2, quantity: '1.234' }] }).positions, []);
   assert.equal(parsed.positions.length, 2);
   assert.equal(parsed.positions[0].spam.riskFlags.length, 1);
+  assert.equal(parsed.wallets.filter(wallet => wallet.family === 'solana').every(wallet => wallet.options.network === 'mainnet-beta'), true);
   const autoBitcoin = parsePortfolioState({ schemaVersion: 2, wallets: [{ id: 'auto-btc', label: 'Auto BTC', family: 'bitcoin', address: syntheticBitcoinTestAddress(), createdAt: 1 }] });
   assert.equal(autoBitcoin.wallets[0].options.network, 'testnet');
   const autoMainnetBitcoin = parsePortfolioState({ schemaVersion: 2, wallets: [{ id: 'auto-btc-main', label: 'Auto BTC Main', family: 'bitcoin', address: syntheticBitcoinAddress(), createdAt: 1 }] });

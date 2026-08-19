@@ -19,7 +19,7 @@ export interface BitcoinWalletOptions {
 }
 
 export interface SolanaWalletOptions {
-  readonly network: 'mainnet-beta' | 'devnet' | 'testnet';
+  readonly network: 'mainnet-beta';
 }
 
 export interface CardanoWalletOptions {
@@ -498,8 +498,7 @@ function parseOptions(family: WalletFamily, value: unknown, detectedNetwork?: st
     return { network, addressType };
   }
   if (family === 'solana') {
-    const network = input.network === 'devnet' || input.network === 'testnet' || input.network === 'mainnet-beta' ? input.network : 'mainnet-beta';
-    return { network };
+    return { network: 'mainnet-beta' };
   }
   return { network: input.network === 'testnet' ? 'testnet' : detectedNetwork === 'testnet' ? 'testnet' : 'mainnet', kind: detectedKind === 'stake' ? 'stake' : 'payment' };
 }
