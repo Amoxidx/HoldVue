@@ -51,7 +51,7 @@ type MessageKey = keyof typeof messages.de;
 
 const messages = {
   de: {
-    'status.ready': 'Lokal bereit', 'status.error': 'Lokaler Fehler', 'status.copy': 'Adresse kopiert', 'status.copyUnavailable': 'Kopieren nicht verfügbar', 'status.syncing': 'Synchronisierung läuft', 'status.syncOk': 'Synchronisiert', 'status.syncEmpty': 'Noch keine Provider konfiguriert', 'status.syncPartial': 'Teilweise synchronisiert', 'status.syncError': 'Synchronisierung fehlgeschlagen', 'status.syncRate': 'Provider-Limit erreicht', 'button.refresh': 'Jetzt synchronisieren', 'sync.last': 'Letzte Wallet-Synchronisierung', 'detection.detected': 'Erkannt',
+    'status.ready': 'Lokal bereit', 'status.error': 'Lokaler Fehler', 'status.copy': 'Adresse kopiert', 'status.copyUnavailable': 'Kopieren nicht verfügbar', 'status.syncing': 'Synchronisierung läuft', 'status.syncOk': 'Synchronisiert', 'status.syncEmpty': 'Noch keine Provider konfiguriert', 'status.syncPartial': 'Teilweise synchronisiert', 'status.syncError': 'Synchronisierung fehlgeschlagen', 'status.syncRate': 'Provider-Limit erreicht', 'button.refresh': 'Jetzt synchronisieren', 'sync.last': 'Letzte Wallet-Synchronisierung', 'detection.detected': 'Erkannt', 'detection.prompt': 'Adresse eingeben oder einfügen', 'detection.checking': 'Adresse wird lokal geprüft …',
     'hero.eyebrow': 'LOCAL-FIRST PORTFOLIO', 'hero.title': 'Dein Portfolio bleibt lokal.', 'hero.lede': 'Öffentliche Wallet-Adressen werden nur lokal gespeichert. Es werden niemals Seeds oder private Schlüssel abgefragt.', 'hero.total': 'Gesamtwert',
     'wallet.eyebrow': 'WALLETS / WALLET-QUELLEN', 'wallet.title': 'Wallets', 'wallet.copy': 'Verwalte öffentliche Adressen und Extended Public Keys. Synchronisierung bleibt providerabhängig; keine NFTs.', 'wallet.add': 'Wallet hinzufügen', 'wallet.empty': 'Noch keine Wallets verbunden.',
     'holdings.eyebrow': 'MANUELLE BESTÄNDE', 'holdings.title': 'Aktien und ETFs', 'holdings.copy': 'Wähle ein Instrument aus der Provider-Suche und hinterlege nur die Stückzahl. Preise werden hier nicht erfunden.', 'holdings.add': 'Aktie/ETF hinzufügen', 'holdings.empty': 'Noch keine manuellen Bestände.', 'holdings.search': 'Instrument suchen', 'holdings.searchPlaceholder': 'Name oder Symbol eingeben', 'holdings.quantity': 'Stückzahl', 'holdings.edit': 'Bestand bearbeiten', 'holdings.deleteTitle': 'Bestand löschen', 'holdings.deleteCopy': 'Der manuelle Bestand wird aus dem lokalen Portfolio entfernt.', 'holdings.typePending': 'Typ wird geprüft',
@@ -59,7 +59,7 @@ const messages = {
     'portfolio.value': 'Wert', 'footer.local': 'HoldVue · lokal gespeichert', 'footer.theme.light': 'Hell', 'footer.theme.dark': 'Dunkel',
     'dialog.public': 'ÖFFENTLICHE QUELLE', 'dialog.add': 'Wallet hinzufügen', 'dialog.edit': 'Wallet bearbeiten', 'dialog.copy': 'Nur öffentliche Adresse oder xpub. Keine Seed-Phrase und kein privater Schlüssel.',
     'field.address': 'Adresse oder Extended Public Key', 'field.label': 'Label / Name', 'field.labelPlaceholder': 'z. B. Hauptwallet', 'field.family': 'Erkannte Familie', 'field.familyEmpty': 'Adresse zuerst prüfen', 'field.evmChains': 'EVM-Chains', 'field.allEvm': 'Alle gängigen Chains automatisch prüfen', 'field.solanaNetwork': 'Solana-Netzwerk', 'field.enabled': 'Aktiv',
-    'button.close': 'Schließen', 'button.cancel': 'Abbrechen', 'button.save': 'Speichern', 'button.done': 'Fertig', 'button.copy': 'Kopieren', 'button.edit': 'Bearbeiten', 'button.delete': 'Löschen',
+    'button.close': 'Schließen', 'button.cancel': 'Abbrechen', 'button.save': 'Speichern', 'button.done': 'Fertig', 'button.copy': 'Kopieren', 'button.edit': 'Bearbeiten', 'button.delete': 'Löschen', 'button.detect': 'Adresse prüfen',
     'wallet.addressFor': 'Adresse von', 'wallet.active': 'Aktiv', 'wallet.disabled': 'Pausiert', 'wallet.allChains': 'Alle gängigen Chains', 'wallet.selectedChains': 'Ausgewählte Chains',
     'delete.eyebrow': 'AKTION BESTÄTIGEN', 'delete.title': 'Wallet löschen', 'delete.copy': 'Die Wallet und zugehörige lokale Positionen werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden.',
     'settings.eyebrow': 'LOKALE EINSTELLUNGEN', 'settings.title': 'Einstellungen', 'settings.currency': 'Währung', 'settings.locale': 'Sprache', 'settings.theme': 'Darstellung', 'settings.automation': 'Lokale Automatisierung', 'settings.scheduler': 'Minütliche Aktualisierung', 'settings.spam': 'Spamfilter aktiv', 'settings.hiddenSpam': 'Verborgene Spamassets zeigen', 'settings.providers': 'Provider aktivieren', 'settings.providerConfig': 'Provider-Konfiguration', 'settings.etherscanKey': 'Kostenloser Etherscan-Key (verschlüsselt)', 'settings.fmpKey': 'FMP-Key (verschlüsselt)', 'settings.keyPlaceholder': 'Nur zum Speichern eingeben', 'settings.keyConfigured': 'Etherscan-Key konfiguriert', 'settings.keyNotConfigured': 'Kein Etherscan-Key konfiguriert', 'settings.fmpConfigured': 'FMP-Key konfiguriert', 'settings.fmpNotConfigured': 'Kein FMP-Key konfiguriert', 'settings.etherscanHelp': 'Kostenloser Key ermöglicht native EVM-Balances und begrenzte Token-Erkennung; Limits bleiben sichtbar.', 'settings.etherscanLink': 'Etherscan-Key beantragen', 'settings.fmpHelp': 'Optionaler Key für Aktien-/ETF-Suche und -Bewertung; Provider-Limits bleiben sichtbar.', 'settings.solanaEndpoint': 'Solana RPC-Override (HTTPS)', 'settings.rpcOverrides': 'EVM-RPC-Overrides', 'settings.rpcHelp': 'Optional, credential-freie HTTPS-Endpunkte pro Chain.', 'button.saveKey': 'Key speichern', 'button.deleteKey': 'Key entfernen', 'provider.evm': 'EVM-RPC', 'provider.bitcoin': 'Bitcoin · mempool.space', 'provider.solana': 'Solana JSON-RPC', 'provider.cardano': 'Cardano · Koios', 'settings.wallets': 'Wallet-Verwaltung',
@@ -67,7 +67,7 @@ const messages = {
     'error.invalid-input': 'Die Eingaben sind ungültig.', 'error.invalid-label': 'Ein Label ist erforderlich.', 'error.invalid-address': 'Die öffentliche Adresse wird nicht unterstützt.', 'error.ambiguous-address': 'Die Adresse ist nicht eindeutig.', 'error.duplicate-wallet': 'Diese Wallet ist bereits verbunden.', 'error.not-found': 'Die Wallet wurde nicht gefunden.', 'error.secret-input': 'Seeds und private Schlüssel werden nicht akzeptiert.', 'error.invalid': 'Keine unterstützte öffentliche Adresse erkannt.', 'error.ambiguous': 'Die Adresse ist nicht eindeutig.', 'error.invalid-chain-selection': 'Wähle mindestens eine EVM-Chain oder aktiviere alle gängigen Chains.', 'error.invalid-instrument': 'Die Instrumentdaten sind ungültig.', 'error.invalid-quantity': 'Die Stückzahl muss positiv sein und darf höchstens zwei Nachkommastellen haben.', 'error.duplicate-holding': 'Dieses Instrument ist bereits als Bestand erfasst.', 'error.unconfigured': 'Für die Instrument-Suche ist ein Provider-Key in den Einstellungen erforderlich.', 'error.rate-limited': 'Das Provider-Limit für die Instrument-Suche ist erreicht.', 'error.unauthorized': 'Der Provider-Key für die Instrument-Suche wurde abgelehnt.', 'error.timeout': 'Die Instrument-Suche hat zu lange gedauert.', 'error.aborted': 'Die Instrument-Suche wurde abgebrochen.', 'error.malformed': 'Die Provider-Antwort konnte nicht sicher gelesen werden.', 'error.search-failed': 'Die Instrument-Suche ist fehlgeschlagen.', 'error.storage-failed': 'Der lokale Zustand konnte nicht aktualisiert werden.', 'error.clipboard-unavailable': 'Kopieren ist nicht verfügbar.', 'error.clipboard-failed': 'Kopieren ist nicht verfügbar.', 'error.generic': 'Die Aktion konnte nicht abgeschlossen werden.', 'error.detect': 'Die Adresse konnte nicht geprüft werden.'
   },
   en: {
-    'status.ready': 'Ready locally', 'status.error': 'Local error', 'status.copy': 'Address copied', 'status.copyUnavailable': 'Copy is unavailable', 'status.syncing': 'Syncing wallets', 'status.syncOk': 'Synchronized', 'status.syncEmpty': 'No providers configured yet', 'status.syncPartial': 'Partially synchronized', 'status.syncError': 'Synchronization failed', 'status.syncRate': 'Provider limit reached', 'button.refresh': 'Sync now', 'sync.last': 'Last wallet synchronization', 'detection.detected': 'Detected',
+    'status.ready': 'Ready locally', 'status.error': 'Local error', 'status.copy': 'Address copied', 'status.copyUnavailable': 'Copy is unavailable', 'status.syncing': 'Syncing wallets', 'status.syncOk': 'Synchronized', 'status.syncEmpty': 'No providers configured yet', 'status.syncPartial': 'Partially synchronized', 'status.syncError': 'Synchronization failed', 'status.syncRate': 'Provider limit reached', 'button.refresh': 'Sync now', 'sync.last': 'Last wallet synchronization', 'detection.detected': 'Detected', 'detection.prompt': 'Enter or paste an address', 'detection.checking': 'Checking address locally …',
     'hero.eyebrow': 'LOCAL-FIRST PORTFOLIO', 'hero.title': 'Your portfolio stays local.', 'hero.lede': 'Public wallet addresses are stored locally only. Seeds and private keys are never requested.', 'hero.total': 'Total value',
     'wallet.eyebrow': 'WALLETS / WALLET SOURCES', 'wallet.title': 'Wallets', 'wallet.copy': 'Manage public addresses and extended public keys. Synchronization depends on providers; no NFTs.', 'wallet.add': 'Add wallet', 'wallet.empty': 'No wallets connected yet.',
     'holdings.eyebrow': 'MANUAL HOLDINGS', 'holdings.title': 'Stocks and ETFs', 'holdings.copy': 'Choose an instrument from the provider search and enter only the quantity. No prices are invented here.', 'holdings.add': 'Add stock/ETF', 'holdings.empty': 'No manual holdings yet.', 'holdings.search': 'Search instrument', 'holdings.searchPlaceholder': 'Enter name or symbol', 'holdings.quantity': 'Quantity', 'holdings.edit': 'Edit holding', 'holdings.deleteTitle': 'Delete holding', 'holdings.deleteCopy': 'The manual holding will be removed from the local portfolio.', 'holdings.typePending': 'Type pending verification',
@@ -75,7 +75,7 @@ const messages = {
     'portfolio.value': 'Value', 'footer.local': 'HoldVue · stored locally', 'footer.theme.light': 'Light', 'footer.theme.dark': 'Dark',
     'dialog.public': 'PUBLIC SOURCE', 'dialog.add': 'Add wallet', 'dialog.edit': 'Edit wallet', 'dialog.copy': 'Public address or xpub only. No seed phrase or private key.',
     'field.address': 'Address or extended public key', 'field.label': 'Label / name', 'field.labelPlaceholder': 'e.g. Main wallet', 'field.family': 'Detected family', 'field.familyEmpty': 'Check address first', 'field.evmChains': 'EVM chains', 'field.allEvm': 'Scan all common chains automatically', 'field.solanaNetwork': 'Solana network', 'field.enabled': 'Enabled',
-    'button.close': 'Close', 'button.cancel': 'Cancel', 'button.save': 'Save', 'button.done': 'Done', 'button.copy': 'Copy', 'button.edit': 'Edit', 'button.delete': 'Delete',
+    'button.close': 'Close', 'button.cancel': 'Cancel', 'button.save': 'Save', 'button.done': 'Done', 'button.copy': 'Copy', 'button.edit': 'Edit', 'button.delete': 'Delete', 'button.detect': 'Check address',
     'wallet.addressFor': 'Address for', 'wallet.active': 'Enabled', 'wallet.disabled': 'Disabled', 'wallet.allChains': 'All common chains', 'wallet.selectedChains': 'Selected chains',
     'delete.eyebrow': 'CONFIRM ACTION', 'delete.title': 'Delete wallet', 'delete.copy': 'The wallet and its local positions will be removed. This action cannot be undone.',
     'settings.eyebrow': 'LOCAL SETTINGS', 'settings.title': 'Settings', 'settings.currency': 'Currency', 'settings.locale': 'Language', 'settings.theme': 'Theme', 'settings.automation': 'Local automation', 'settings.scheduler': 'Minute refresh', 'settings.spam': 'Spam filter enabled', 'settings.hiddenSpam': 'Show hidden spam assets', 'settings.providers': 'Enable providers', 'settings.providerConfig': 'Provider configuration', 'settings.etherscanKey': 'Free Etherscan key (encrypted)', 'settings.fmpKey': 'FMP key (encrypted)', 'settings.keyPlaceholder': 'Enter only to save', 'settings.keyConfigured': 'Etherscan key configured', 'settings.keyNotConfigured': 'No Etherscan key configured', 'settings.fmpConfigured': 'FMP key configured', 'settings.fmpNotConfigured': 'No FMP key configured', 'settings.etherscanHelp': 'A free key enables native EVM balances and bounded token discovery; limits remain visible.', 'settings.etherscanLink': 'Request an Etherscan key', 'settings.fmpHelp': 'Optional key for stock/ETF search and valuation; provider limits remain visible.', 'settings.solanaEndpoint': 'Solana RPC override (HTTPS)', 'settings.rpcOverrides': 'EVM RPC overrides', 'settings.rpcHelp': 'Optional credential-free HTTPS endpoint per chain.', 'button.saveKey': 'Save key', 'button.deleteKey': 'Remove key', 'provider.evm': 'EVM JSON-RPC', 'provider.bitcoin': 'Bitcoin · mempool.space', 'provider.solana': 'Solana JSON-RPC', 'provider.cardano': 'Cardano · Koios', 'settings.wallets': 'Wallet management',
@@ -502,12 +502,16 @@ export function createRendererController(documentRef: RendererDocument, api: Hol
     if (await applyMutation(api.refresh())) showStatus(syncSummary(currentState!));
   };
   const detectionText = (match: AddressMatch): string => `${localized('detection.detected')}: ${match.family.toUpperCase()}${match.network ? ` · ${message(locale(), networkKey(match.network))}` : ''}`;
+  const showDetectionState = (text: string, state: 'idle' | 'checking' | 'success' | 'error'): void => {
+    setText(query('[data-wallet-detection]'), text);
+    query('[data-wallet-detection-result]')?.setAttribute?.('data-state', state);
+  };
   const applyDetection = (result: AddressDetection | { readonly ok: false; readonly code: string; readonly message: string }): void => {
-    if (!result.ok) { detected = null; showErrorCode(result.code); setText(query('[data-wallet-detection]'), localized('error.invalid')); return; }
+    if (!result.ok) { detected = null; showErrorCode(result.code); showDetectionState(localized('error.invalid'), 'error'); return; }
     detected = result;
     const family = query('[data-wallet-family]');
     if (family) { family.value = result.family; family.disabled = true; family.setAttribute?.('aria-invalid', 'false'); }
-    setText(query('[data-wallet-detection]'), detectionText(result));
+    showDetectionState(detectionText(result), 'success');
     clearError();
     const evmOptions = query('[data-evm-options]'); if (evmOptions) evmOptions.hidden = result.family !== 'evm';
     const solanaOptions = query('[data-solana-options]'); if (solanaOptions) solanaOptions.hidden = result.family !== 'solana';
@@ -518,14 +522,14 @@ export function createRendererController(documentRef: RendererDocument, api: Hol
     const generation = ++detectionGeneration;
     detected = null;
     clearError();
-    setText(query('[data-wallet-detection]'), '');
-    if (!address) return;
-    if (address.length > MAX_PUBLIC_INPUT_LENGTH) { showErrorCode('invalid-input'); return; }
+    if (!address) { showDetectionState(localized('detection.prompt'), 'idle'); return; }
+    showDetectionState(localized('detection.checking'), 'checking');
+    if (address.length > MAX_PUBLIC_INPUT_LENGTH) { showErrorCode('invalid-input'); showDetectionState(localized('error.invalid-input'), 'error'); return; }
     try {
       const result = await api.detectWalletAddress(address);
       if (generation !== detectionGeneration || readValue('[data-wallet-address]').trim() !== address) return;
       applyDetection(result);
-    } catch { if (generation === detectionGeneration) showErrorCode('detect'); }
+    } catch { if (generation === detectionGeneration) { showErrorCode('detect'); showDetectionState(localized('error.detect'), 'error'); } }
   };
   const selectedChainIds = (): number[] => Array.from(query('[data-evm-chains]')?.querySelectorAll?.('input[data-chain-id]') as Iterable<RendererElement> ?? []).filter(input => input.checked).map(input => Number(input.value)).filter(id => Number.isSafeInteger(id) && id > 0);
   const formOptions = (family: WalletFamily): Record<string, unknown> => {
@@ -552,7 +556,7 @@ export function createRendererController(documentRef: RendererDocument, api: Hol
     for (const input of queryAll('[data-chain-id]')) input.checked = wallet?.family === 'evm' && !wallet.options.autoScanCommonChains && wallet.options.chainIds.includes(Number(input.value));
     const solanaNetwork = query('[data-wallet-solana-network]'); if (solanaNetwork && wallet?.family === 'solana') solanaNetwork.value = wallet.options.network;
     const modeText = query('[data-wallet-dialog-title]'); setText(modeText, localized(mode === 'edit' ? 'dialog.edit' : 'dialog.add'));
-    setText(query('[data-wallet-detection]'), wallet ? detectionText(detected!) : '');
+    showDetectionState(wallet ? detectionText(detected!) : localized('detection.prompt'), wallet ? 'success' : 'idle');
     const evmOptions = query('[data-evm-options]'); if (evmOptions) evmOptions.hidden = wallet?.family !== 'evm';
     const solanaOptions = query('[data-solana-options]'); if (solanaOptions) solanaOptions.hidden = wallet?.family !== 'solana';
     setEvmControls();
@@ -650,6 +654,7 @@ export function createRendererController(documentRef: RendererDocument, api: Hol
     bind(query('[data-holding-form]'), 'submit', event => { void submitHolding(event); });
     bind(query('[data-wallet-address]'), 'input', () => { void detectInput(); });
     bind(query('[data-wallet-address]'), 'change', () => { void detectInput(); });
+    bind(query('[data-wallet-detect]'), 'click', event => { event.preventDefault(); void detectInput(); });
     bind(query('[data-instrument-search]'), 'input', scheduleInstrumentSearch);
     bind(query('[data-instrument-search]'), 'keydown', instrumentKeydown);
     bindMany(['[data-holding-cancel]', '[data-holding-cancel-close]'], 'click', event => { event.preventDefault(); searchAbort.abort(); if (searchTimer !== null) clearTimeout(searchTimer); hideSuggestions(); setDialogOpen(holdingDialog, false); editingHoldingId = null; selectedInstrument = null; holdingRestore(); });
