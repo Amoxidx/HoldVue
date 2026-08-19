@@ -430,13 +430,104 @@ test('real DOM renders fixed-point valuation summary and fail-closed unavailable
   const controller = createRendererController(dom.window.document, api);
   await controller.render();
   assert.equal(dom.window.document.querySelector('[data-portfolio-total]').textContent, '—');
-  assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /Preis nicht verfügbar/);
+  assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /Keine Preisquelle/);
   current = { ...state, settings: { ...state.settings, currency: 'USD' }, prices: { ...state.prices, quotes: [], valuations: [{ assetId: 'instrument:instrument-price', quantityBaseUnits: '100', quantityDecimals: 2, priceEurScaled: null, priceUsdScaled: '1000000000000', valueEurScaled: null, valueUsdScaled: '1000000000000', dayChangeEurScaled: null, dayChangeUsdScaled: null, dayChangePercentScaled: null, status: 'valued' }] } };
-  await controller.render(); assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /Preis nicht verfügbar/);
+  await controller.render(); assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /Keine Preisquelle/);
   current = { ...state, prices: { ...state.prices, quotes: [{ assetId: 'instrument:instrument-price', priceEurScaled: '1230000000000', priceUsdScaled: '1300000000000', scale: 12, change24hPercentScaled: null, previousPriceEurScaled: null, previousPriceUsdScaled: null, source: 'synthetic', sourceTimestamp: null, fetchedAt: 1 }], valuations: [{ assetId: 'instrument:instrument-price', quantityBaseUnits: '100', quantityDecimals: 2, priceEurScaled: '1230000000000', priceUsdScaled: '1300000000000', valueEurScaled: '1230000000000', valueUsdScaled: '1300000000000', dayChangeEurScaled: null, dayChangeUsdScaled: null, dayChangePercentScaled: null, status: 'valued' }], totalEurScaled: '1230000000000', totalUsdScaled: '1300000000000', valuedAssets: 1, totalAssets: 1, complete: true } };
   await controller.render(); assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /1,23/);
   current = { ...current, settings: { ...current.settings, currency: 'USD' }, prices: { ...current.prices, quotes: [{ ...current.prices.quotes[0], priceEurScaled: null, priceUsdScaled: null }], valuations: [] } };
-  await controller.render(); assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /Preis nicht verfügbar/);
+  await controller.render(); assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /Keine Preisquelle/);
   current = { ...current, settings: { ...current.settings, locale: 'en' }, prices: { ...current.prices, quotes: [{ ...current.prices.quotes[0], priceEurScaled: '1230000000000', priceUsdScaled: '1300000000000' }] } };
   await controller.render(); assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /USD/);
+});
+
+test('local catalog selection explains keyless save and unconfigured price CTA opens FMP settings', async () => {
+  const dom = await domFixture();
+  const candidate = { providerId: 'holdvue.catalog', providerSymbol: 'EUNL.DE', symbol: 'EUNL', name: 'Synthetic MSCI World ETF', exchange: 'XETRA', currency: 'EUR', type: 'etf' };
+  let searchCandidate = candidate;
+  let state = {
+    schemaVersion: 5,
+    settings: { ...settings(), providerRefs: undefined },
+    positions: [],
+    wallets: [],
+    instruments: [],
+    holdings: [],
+    sync: { schemaVersion: 1, statuses: [] },
+    prices: { quotes: [], statuses: [], valuations: [], history: [], totalEurScaled: null, totalUsdScaled: null, complete: false, valuedAssets: 0, totalAssets: 0, dayChangeEurScaled: null, dayChangeUsdScaled: null, dayChangePercentScaled: null }
+  };
+  const api = {
+    async getState() { return success(state); },
+    async searchInstruments() { return success([searchCandidate]); },
+    async addHolding(input) {
+      state = { ...state, instruments: [{ ...candidate, schemaVersion: 4, id: 'instrument-eunl' }], holdings: [{ schemaVersion: 4, id: 'holding-eunl', instrumentId: 'instrument-eunl', quantityHundredths: '100', quantity: input.quantity, updatedAt: 1 }], prices: { ...state.prices, statuses: [], totalAssets: 1 } };
+      return success(state);
+    },
+    async updateHolding() { return success(state); }, async deleteHolding() { return success(state); },
+    async addWallet() { return success(state); }, async updateWallet() { return success(state); }, async deleteWallet() { return success(state); }, async copyWalletAddress() { return success({ copied: true }); },
+    async refresh() { return success(state); }, async updateSettings(patch) { state = { ...state, settings: { ...state.settings, ...patch } }; return success(state); },
+    async setEtherscanKey() { return success(state); }, async deleteEtherscanKey() { return success(state); }, async setFmpKey() { return success(state); }, async deleteFmpKey() { return success(state); },
+    onMinute() { return () => undefined; }
+  };
+  const controller = createRendererController(dom.window.document, api);
+  const dispose = controller.start();
+  await controller.render();
+  const documentRef = dom.window.document;
+  documentRef.querySelector('[data-add-holding]').click();
+  const search = documentRef.querySelector('[data-instrument-search]');
+  search.value = 'eunl';
+  search.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  await new Promise(resolve => setTimeout(resolve, 315));
+  documentRef.querySelector('[data-instrument-index="0"]').click();
+  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /ohne Key|without a key/i);
+  documentRef.querySelector('[data-holding-quantity]').value = '1';
+  documentRef.querySelector('[data-holding-form]').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+  await new Promise(resolve => setImmediate(resolve));
+  const holdingText = documentRef.querySelector('[data-holding-list]').textContent;
+  assert.match(holdingText, /Keine Preisquelle eingerichtet/);
+  assert.doesNotMatch(holdingText, /Preis nicht verfügbar ·/);
+  const setup = documentRef.querySelector('[data-price-source-setup]');
+  assert.ok(setup);
+  setup.click();
+  assert.equal(documentRef.querySelector('[data-settings-dialog]').hidden, false);
+  assert.equal(documentRef.activeElement, documentRef.querySelector('[data-fmp-key]'));
+  assert.match(documentRef.querySelector('[data-fmp-key]').previousElementSibling.textContent, /automatische Aktien/);
+  documentRef.querySelector('[data-settings-close]').click();
+  documentRef.querySelector('[data-holding-action="edit"]').click();
+  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /Automatische Kurse benötigen/);
+  documentRef.querySelector('[data-holding-cancel]').click();
+  state = { ...state, settings: { ...state.settings, providerRefs: [{ providerId: 'fmp.market', keyId: 'ref_fmp.market_synthetic', enabled: true }] } };
+  await controller.render();
+  documentRef.querySelector('[data-holding-action="edit"]').click();
+  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /konfiguriert|configured/i);
+  documentRef.querySelector('[data-holding-cancel]').click();
+  documentRef.querySelector('[data-add-holding]').click();
+  const configuredSearch = documentRef.querySelector('[data-instrument-search]');
+  configuredSearch.value = 'configured-local';
+  configuredSearch.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  await new Promise(resolve => setTimeout(resolve, 315));
+  documentRef.querySelector('[data-instrument-index="0"]').click();
+  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /automatische Kurse sind aktiv|automatic prices are active/i);
+  documentRef.querySelector('[data-holding-cancel]').click();
+  searchCandidate = { ...candidate, providerId: 'fmp.market' };
+  documentRef.querySelector('[data-add-holding]').click();
+  configuredSearch.value = 'configured-remote';
+  configuredSearch.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  await new Promise(resolve => setTimeout(resolve, 315));
+  documentRef.querySelector('[data-instrument-index="0"]').click();
+  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /automatische Aktien.*aktiv|automatic stock.*active/i);
+  documentRef.querySelector('[data-holding-cancel]').click();
+  state = { ...state, instruments: state.instruments.map(instrument => ({ ...instrument, providerId: 'fmp.market' })) };
+  await controller.render();
+  documentRef.querySelector('[data-holding-action="edit"]').click();
+  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /automatische Aktien.*aktiv|automatic stock.*active/i);
+  documentRef.querySelector('[data-holding-cancel]').click();
+  for (const [status, expected] of [['partial', 'teilweise'], ['rate-limited', 'Limit'], ['error', 'nicht erreichbar'], ['aborted', 'nicht erreichbar'], ['ok', 'Preis noch nicht verfügbar']]) {
+    state = { ...state, prices: { ...state.prices, statuses: [{ assetId: 'instrument:instrument-eunl', providerId: 'fmp.market', status, errorCode: null, lastGoodFetchedAt: null }] } };
+    await controller.render();
+    assert.match(documentRef.querySelector('[data-holding-list]').textContent, new RegExp(expected, 'i'));
+  }
+  state = { ...state, prices: { ...state.prices, quotes: [{ assetId: 'instrument:instrument-eunl', priceEurScaled: '1000000000000', priceUsdScaled: '1100000000000', scale: 12, change24hPercentScaled: null, change24hEurPercentScaled: null, change24hUsdPercentScaled: null, previousPriceEurScaled: null, previousPriceUsdScaled: null, source: 'synthetic', sourceTimestamp: null, fetchedAt: 1 }], statuses: [{ assetId: 'instrument:instrument-eunl', providerId: 'fmp.market', status: 'stale', errorCode: 'timeout', lastGoodFetchedAt: 1 }] } };
+  await controller.render();
+  assert.match(documentRef.querySelector('[data-holding-list]').textContent, /Letzter Kurs|1,00/);
+  dispose();
 });

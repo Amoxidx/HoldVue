@@ -311,6 +311,9 @@ h4 { margin: 0; font-size: .9rem; }
 .wallet-meta { margin: 3px 0 7px; }
 .wallet-address { display: block; max-width: 100%; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .68rem; user-select: text; }
 .holding-meta, .holding-quantity { margin: 3px 0 0; }
+.holding-price-status { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.holding-price-status small { color: var(--muted); }
+.holding-price-action { min-height: 32px; padding: 5px 9px; font-size: .72rem; }
 .holding-quantity strong { margin-left: 4px; color: var(--text-strong); font-size: .9rem; }
 .wallet-actions, .holding-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .wallet-actions button, .holding-actions button { min-height: 34px; padding: 5px 9px; font-size: .72rem; }

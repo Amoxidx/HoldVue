@@ -65,12 +65,15 @@ test('Electron composition, secure BrowserWindow, IPC, minute tick and lifecycle
   assert.deepEqual(window.openHandler({ url: 'https://example.invalid' }), { action: 'deny' });
   assert.deepEqual(window.openHandler({ url: 'https://etherscan.io/apis' }), { action: 'deny' });
   assert.deepEqual(window.openHandler({ url: 'https://etherscan.io/apis?ref=synthetic' }), { action: 'deny' });
+  assert.deepEqual(window.openHandler({ url: 'https://site.financialmodelingprep.com/developer/docs/stable' }), { action: 'deny' });
+  assert.deepEqual(window.openHandler({ url: 'https://site.financialmodelingprep.com.evil.invalid/developer/docs/stable' }), { action: 'deny' });
+  assert.deepEqual(window.openHandler({ url: 'http://site.financialmodelingprep.com/developer/docs/stable' }), { action: 'deny' });
   assert.deepEqual(window.openHandler({ url: 'https://etherscan.io.evil.invalid/apis' }), { action: 'deny' });
   assert.deepEqual(window.openHandler({ url: 'http://etherscan.io/apis' }), { action: 'deny' });
   assert.deepEqual(window.openHandler({ url: 'javascript:alert(1)' }), { action: 'deny' });
   assert.deepEqual(window.openHandler({ url: 'not a URL' }), { action: 'deny' });
   await Promise.resolve();
-  assert.deepEqual(f.shell.opened, ['https://etherscan.io/apis', 'https://etherscan.io/apis?ref=synthetic']);
+  assert.deepEqual(f.shell.opened, ['https://etherscan.io/apis', 'https://etherscan.io/apis?ref=synthetic', 'https://site.financialmodelingprep.com/developer/docs/stable']);
   f.shell.mode = 'throw';
   assert.deepEqual(window.openHandler({ url: 'https://etherscan.io/apis' }), { action: 'deny' });
   f.shell.mode = 'reject';

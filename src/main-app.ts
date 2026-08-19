@@ -276,7 +276,9 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
       let allowed = false;
       try {
         const url = new URL(details.url);
-        allowed = url.protocol === 'https:' && url.hostname === 'etherscan.io' && url.port === '' && url.username === '' && url.password === '' && url.pathname === '/apis' && url.hash === '';
+        const etherscan = url.protocol === 'https:' && url.hostname === 'etherscan.io' && url.port === '' && url.username === '' && url.password === '' && url.pathname === '/apis' && url.hash === '';
+        const fmp = url.protocol === 'https:' && url.hostname === 'site.financialmodelingprep.com' && url.port === '' && url.username === '' && url.password === '' && url.pathname === '/developer/docs/stable' && url.hash === '';
+        allowed = etherscan || fmp;
       } catch { allowed = false; }
       if (allowed && options.shell) {
         try { void Promise.resolve(options.shell.openExternal(details.url)).catch(() => undefined); } catch { /* external browser failures stay local */ }

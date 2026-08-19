@@ -205,6 +205,21 @@ function parseFx(value: unknown, symbol: string): string | null {
   const row = quoteRows(value)?.find(item => typeof item.symbol === 'string' && item.symbol.toUpperCase() === symbol.toUpperCase());
   return row ? fmpPrice(row.price ?? row.bid ?? row.ask) : null;
 }
+/**
+ * FMP quote requests use the provider's quote identifier.  Older persisted
+ * FMP candidates used `SYMBOL@EXCHANGE`; keep reading those deterministically
+ * while local catalog entries can carry the real exchange-qualified symbol
+ * (for example `EUNL.DE`).  The display symbol remains instrument.symbol.
+ */
+export function providerQuoteSymbol(instrument: Instrument): string {
+  const providerSymbol = instrument.providerSymbol.trim();
+  if (providerSymbol === '') return instrument.symbol.trim();
+  const separator = providerSymbol.indexOf('@');
+  if (separator <= 0) return providerSymbol;
+  const legacySymbol = providerSymbol.slice(0, separator);
+  const isLegacyLocalXetra = instrument.providerId === 'holdvue.catalog' && instrument.exchange.toUpperCase() === 'XETRA' && !legacySymbol.includes('.');
+  return isLegacyLocalXetra ? `${legacySymbol}.DE` : legacySymbol;
+}
 export function createFmpQuoteAdapter(options: FmpQuoteOptions): PriceProvider {
   const requestedBatch = Number(options.maxBatch); const batch = Number.isSafeInteger(requestedBatch) && requestedBatch > 0 && requestedBatch <= 50 ? requestedBatch : 20;
   return { id: FMP_QUOTES_PROVIDER_ID, async fetch(assets, context) {
@@ -222,12 +237,12 @@ export function createFmpQuoteAdapter(options: FmpQuoteOptions): PriceProvider {
     await fetchFx('EURUSD');
     for (const currency of currencies) await fetchFx(`${currency}USD`);
     for (let offset = 0; offset < instrumentAssets.length; offset += batch) {
-      const group = instrumentAssets.slice(offset, offset + batch); const symbols = group.map(asset => asset.instrument!.symbol).join(',');
+      const group = instrumentAssets.slice(offset, offset + batch); const symbols = group.map(asset => providerQuoteSymbol(asset.instrument!)).join(',');
       try {
         const payload = await options.http.requestJson<unknown>({ url: `${FMP_BATCH_QUOTE_URL}?symbols=${encodeURIComponent(symbols)}`, headers: { apikey: key }, timeoutMs: options.timeoutMs ?? 10_000, maxBytes: options.maxBytes ?? 512_000 }, context.signal);
         const rows = quoteRows(payload); if (!rows) throw new Error('malformed');
         for (const asset of group) {
-          const instrument = asset.instrument!; const row = rows.find(item => typeof item.symbol === 'string' && item.symbol.toUpperCase() === instrument.symbol.toUpperCase()); const direct = row ? fmpPrice(row.price ?? row.priceClose) : null;
+          const instrument = asset.instrument!; const quoteSymbol = providerQuoteSymbol(instrument); const row = rows.find(item => typeof item.symbol === 'string' && item.symbol.toUpperCase() === quoteSymbol.toUpperCase()); const direct = row ? fmpPrice(row.price ?? row.priceClose) : null;
           if (!row || !direct) { statuses.push(statusFor(asset.assetId, FMP_QUOTES_PROVIDER_ID, 'unpriced', 'missing-quote', null)); continue; }
           const currency = instrument.currency.toUpperCase(); let eur: string | null = null; let usd: string | null = null; let previousEur: string | null = null; let previousUsd: string | null = null;
           const eurRate = fx.get('EURUSD');

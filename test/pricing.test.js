@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   COINGECKO_PROVIDER_ID, COINGECKO_SIMPLE_PRICE_URL, COINGECKO_TOKEN_PRICE_URL, FMP_BATCH_QUOTE_URL, FMP_FOREX_QUOTE_URL,
-  assetIdentityForInstrument, assetIdentityForPosition, createCoinGeckoPriceAdapter, createFmpQuoteAdapter, createPricingCoordinator,
+  assetIdentityForInstrument, assetIdentityForPosition, createCoinGeckoPriceAdapter, createFmpQuoteAdapter, createPricingCoordinator, providerQuoteSymbol,
   decimalToScaled, mergePriceState, scaledToDecimal, updateHistory, valueAssets
 } from '../src/shared/pricing.ts';
 import { createEmptyPortfolioState, parsePortfolioState, PRICE_SCALE } from '../src/shared/state.ts';
@@ -151,17 +151,23 @@ test('pricing adapters fail closed across option defaults, cooldown aliases, and
 
 test('FMP quote adapter uses batch quote and cached official quote FX without key leakage', async () => {
   const requests = [];
-  const instrument = { schemaVersion: 4, id: 'i', providerId: 'fmp.market', providerSymbol: 'SYN@X', symbol: 'SYN', name: 'Synthetic', exchange: 'X', currency: 'USD', type: 'stock' };
+  const instrument = { schemaVersion: 4, id: 'i', providerId: 'fmp.market', providerSymbol: 'EUNL.DE', symbol: 'EUNL', name: 'Synthetic ETF', exchange: 'XETRA', currency: 'USD', type: 'stock' };
   const asset = assetIdentityForInstrument(instrument);
   const http = fakeHttp(request => {
     requests.push(request);
     if (request.url.startsWith(FMP_FOREX_QUOTE_URL)) return [{ symbol: 'EURUSD', price: 1.1 }];
-    if (request.url.startsWith(FMP_BATCH_QUOTE_URL)) return [{ symbol: 'SYN', price: 10, previousClose: 9, timestamp: 123 }];
+    if (request.url.startsWith(FMP_BATCH_QUOTE_URL)) return [{ symbol: 'EUNL.DE', price: 10, previousClose: 9, timestamp: 123 }];
     return [];
   });
   const adapter = createFmpQuoteAdapter({ http, getApiKey: async () => 'synthetic-key' });
   const result = await adapter.fetch([asset, { ...asset, assetId: 'instrument:j' }], { ...httpContext, http });
   assert.equal(result.quotes.length, 2); assert.equal(result.statuses.find(item => item.assetId === asset.assetId)?.status, 'ok');
+  assert.equal(providerQuoteSymbol(instrument), 'EUNL.DE');
+  assert.equal(providerQuoteSymbol({ ...instrument, providerSymbol: ' ' }), 'EUNL');
+  assert.equal(providerQuoteSymbol({ ...instrument, providerId: 'holdvue.catalog', providerSymbol: 'EUNL@XETRA' }), 'EUNL.DE');
+  assert.equal(providerQuoteSymbol({ ...instrument, providerId: 'holdvue.catalog', providerSymbol: 'SAP.DE@XETRA', symbol: 'SAP.DE' }), 'SAP.DE');
+  assert.equal(providerQuoteSymbol({ ...instrument, providerSymbol: 'SYN@X' }), 'SYN');
+  assert.ok(requests.some(item => item.url.includes('EUNL.DE')));
   assert.equal(requests.filter(item => item.url.startsWith(FMP_FOREX_QUOTE_URL)).length, 1); assert.ok(requests.every(item => !item.url.includes('synthetic-key'))); assert.equal(result.quotes[0].sourceTimestamp, 123000);
   const noKey = await createFmpQuoteAdapter({ http, getApiKey: () => null }).fetch([asset], { ...httpContext, http }); assert.equal(noKey.statuses[0].errorCode, 'unconfigured');
   const bad = await createFmpQuoteAdapter({ http: fakeHttp(() => { throw new TransportError('http', 'bad', 401); }), getApiKey: () => 'synthetic-key' }).fetch([asset], { ...httpContext, http }); assert.equal(bad.statuses[0].status, 'error');
