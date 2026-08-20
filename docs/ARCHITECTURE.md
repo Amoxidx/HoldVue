@@ -90,8 +90,10 @@ symbols or contract strings cannot collide across chains or environments.
 CoinGecko's keyless simple-price and token-price routes cover supported mainnet
 crypto assets; one CoinGecko ID may populate several chain-qualified native
 asset IDs, while testnet/devnet and unsupported platforms remain unpriced. The
-FMP batch-quote adapter covers verified manual stock/ETF instruments and loads
-distinct currency conversions once per refresh from the official quote route.
+keyless Yahoo Finance adapter is the primary stock/ETF source and validates
+chart metadata, current/previous closes, currencies, timestamps, and required
+FX crosses. The FMP batch-quote adapter is an optional fallback for unresolved
+manual instruments and loads distinct currency conversions once per refresh.
 It sends provider credentials only through the injected secret getter and
 request headers. Both adapters parse bounded decimal inputs into `10^12`
 fixed-point strings, derive daily changes with BigInt arithmetic, and return
@@ -136,8 +138,9 @@ logs, or a fallback file.
 The minute scheduler emits only a local signal. Main composition wires that
 signal to an injected scan coordinator; a configured refresh runs wallet scan,
 price fetch, exact valuation, history update, and one atomic state save before
-emitting one renderer event. The default application has no enabled provider
-and therefore performs no live network call. Main IPC
+emitting one renderer event. An empty default portfolio performs no live
+network call; a user-created wallet or manual holding explicitly supplies the
+asset scope for enabled providers. Main IPC
 exposes narrowly scoped, typed channels for state, offline address detection,
 wallet add/edit/delete, settings updates, and the minute signal. Every state
 mutation is serialized in one main-process queue; IDs and timestamps are

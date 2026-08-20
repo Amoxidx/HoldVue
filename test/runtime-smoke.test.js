@@ -57,6 +57,7 @@ test('Electron composition, secure BrowserWindow, IPC, minute tick and lifecycle
   assert.equal((await f.handlers.get('holdvue:set-etherscan-key')({}, 'synthetic-key')).code, 'secret-storage-unavailable');
   const window = composition.getWindow();
   assert.equal(window.options.webPreferences.contextIsolation, true);
+  assert.equal(window.options.minWidth, 480);
   assert.equal(window.options.webPreferences.nodeIntegration, false);
   assert.equal(window.options.webPreferences.sandbox, true);
   assert.equal(window.options.webPreferences.preload, '/tmp/preload.js');
@@ -277,7 +278,7 @@ test('ESM runtime paths and entry composition are injectable', async () => {
   assert.equal(typeof loadPreloadModule('node:path').join, 'function');
   assert.match(paths.preload, /preload\.cjs$/);
   assert.match(paths.renderer, /renderer[\\/]index\.html$/);
-  assert.match(paths.icon, /renderer[\\/]holdvue-icon\.png$/);
+  assert.match(paths.icon, /renderer[\\/]holdvue-window-icon\.png$/);
   let launches = 0;
   assert.equal(runEntry(false, () => { launches++; }), null);
   assert.equal(runEntry(true, () => { launches++; return 'started'; }), 'started');
@@ -295,7 +296,7 @@ test('ESM runtime paths and entry composition are injectable', async () => {
   await Promise.resolve();
   assert.equal(started, fakeComposition);
   assert.match(captured.paths.preload, /preload\.cjs$/);
-  assert.match(captured.paths.icon, /renderer[\\/]holdvue-icon\.png$/);
+  assert.match(captured.paths.icon, /renderer[\\/]holdvue-window-icon\.png$/);
   // Exercise both production adapter wiring paths without creating a wallet or
   // making a network request: a resolved RPC override supplies the injected
   // port, while the empty settings use the credential-only fallback path.
@@ -307,17 +308,19 @@ test('ESM runtime paths and entry composition are injectable', async () => {
   assert.equal(launches, 2);
   captured.scheduler.onMinute();
   assert.equal(minutes, 1);
-  assert.deepEqual(await captured.instrumentSearch.search('synthetic'), { ok: true, value: [], partial: false });
+  const offlineSearch = new AbortController();
+  offlineSearch.abort();
+  assert.equal((await captured.instrumentSearch.search('synthetic', offlineSearch.signal)).code, 'aborted');
   mkdirSync('/tmp/holdvue-smoke', { recursive: true });
   await captured.storage.save({ schemaVersion: 4, settings: { currency: 'EUR', locale: 'de', theme: 'dark', schedulerEnabled: false, spamFilterEnabled: true, showHiddenSpamAssets: false, enabledChainIds: [], customChains: [], rpcOverrides: [], providerRefs: [{ providerId: 'fmp.market', keyId: 'ref_fmp.market_synthetic', enabled: true }], providerEndpoints: [], enabledProviderIds: [] }, positions: [], wallets: [], instruments: [], holdings: [], sync: { schemaVersion: 1, statuses: [] } });
   const missingSecret = new AbortController();
   missingSecret.abort();
-  assert.deepEqual(await captured.instrumentSearch.search('synthetic', missingSecret.signal), { ok: true, value: [], partial: false });
+  assert.equal((await captured.instrumentSearch.search('synthetic', missingSecret.signal)).code, 'aborted');
   assert.equal(captured.secrets?.set('ref_fmp.market_synthetic', 'synthetic-fmp-value').ok, true);
   decryptThrows = true;
   const abortedSearch = new AbortController();
   abortedSearch.abort();
-  assert.deepEqual(await captured.instrumentSearch.search('synthetic', abortedSearch.signal), { ok: true, value: [], partial: false });
+  assert.equal((await captured.instrumentSearch.search('synthetic', abortedSearch.signal)).code, 'aborted');
   decryptThrows = false;
   assert.equal(captured.secrets?.set('ref_fmp.market_synthetic', 'synthetic-fmp-value').ok, true);
   const emptyRuntime = { schemaVersion: 3, settings: { currency: 'EUR', locale: 'de', theme: 'dark', schedulerEnabled: false, spamFilterEnabled: true, showHiddenSpamAssets: false, enabledChainIds: [1], customChains: [], rpcOverrides: [], providerRefs: [{ providerId: 'evm.erc20', keyId: 'ref_evm.erc20_synthetic', enabled: true }], providerEndpoints: [{ providerId: 'evm.erc20', endpoint: 'https://api.synthetic.invalid', enabled: true }], enabledProviderIds: [] }, positions: [], wallets: [{ schemaVersion: 3, id: 'runtime-synthetic', label: 'Synthetic runtime wallet', family: 'evm', address: `0x${'1'.repeat(40)}`, enabled: true, createdAt: 1, options: { autoScanCommonChains: false, chainIds: [1] } }], sync: { schemaVersion: 1, statuses: [] } };
@@ -333,6 +336,7 @@ test('production FMP key getter reads only enabled references and redacts unavai
   assert.equal(await createFmpKeyGetter(storage, secrets)(), null);
   const enabled = { async load() { return { settings: { providerRefs: [{ providerId: 'fmp.market', enabled: true, keyId: 'ref_fmp.market_synthetic' }] } }; } };
   assert.equal(await createFmpKeyGetter(enabled, { get: () => ({ ok: true, value: 'synthetic-key' }) })(), 'synthetic-key');
+  assert.equal(await createFmpKeyGetter(enabled, { get: () => ({ ok: false, code: 'storage-failed', message: 'synthetic' }) })(), null);
   const disabled = { async load() { return { settings: { providerRefs: [{ providerId: 'fmp.market', enabled: false, keyId: 'ref_fmp.market_synthetic' }] } }; } };
   assert.equal(await createFmpKeyGetter(disabled, { get: () => ({ ok: true, value: 'synthetic-key' }) })(), null);
 });

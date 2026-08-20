@@ -20,8 +20,9 @@ The current capability boundary is intentionally explicit:
 - live adapters, configured explicitly: EVM native RPC balances; Bitcoin address balances through mempool.space; Solana native/SPL and Token-2022 fungible balances; and Cardano native/fungible Koios balances;
 - limited by provider capability: EVM native balances use configured RPC first and the official Etherscan V2 `balance` endpoint when no RPC is configured and a free encrypted key is supplied. Token discovery uses the current-holdings path when available, then falls back to bounded `tokentx` discovery plus `tokenbalance` for free keys. Rate limits, 3-calls/second and 100k/day caps, PRO restrictions, malformed data, and unsupported chains remain visible partial/unconfigured statuses and never become zero balances;
 - implemented/configured without a crypto key: CoinGecko keyless EUR/USD quotes for supported mainnet native assets and known fungible contracts. Testnet/devnet assets and unsupported platforms stay explicitly unpriced. Quotes, values, daily changes, and local history use exact scaled integer strings; provider failures preserve last-good data and never become zero;
-- implemented/configured with the optional encrypted FMP key: batch stock/ETF quotes and official FX conversion for manual holdings. Missing key, tier limits, missing FX, malformed rows, and rate limits remain partial/unpriced; no one-to-one currency assumption or price inference is made;
-- implemented without a key for common instruments: a bundled, read-only local catalog provides deterministic stock/ETF suggestions such as MSCI World ETFs and widely held US/European equities. An optional encrypted FMP key expands symbol/name coverage; FMP suggestions are persisted only after an official profile verifies symbol, exchange, active status, and `isEtf`/`isFund` classification. Search never invents or supplies prices;
+- implemented without a key for stocks/ETFs: Yahoo Finance search and chart data provide automatic instrument discovery and current quotes. Returned symbols, types, currencies, timestamps, previous closes, and FX crosses are validated strictly; missing, malformed, mismatched, or rate-limited responses remain visibly unpriced/partial and never become zero;
+- implemented with the optional encrypted FMP key as a fallback: batch stock/ETF quotes and official FX conversion can fill instruments Yahoo did not price. Missing key, tier limits, missing FX, malformed rows, and rate limits remain partial/unpriced; no one-to-one currency assumption or price inference is made;
+- implemented locally for common instruments: a bundled, read-only catalog provides deterministic suggestions such as MSCI World ETFs and widely held US/European equities before the keyless Yahoo search. FMP can optionally expand the provider set; every remote selection is resolved to canonical metadata before persistence. Search never invents a price;
 - manual holdings: exact positive quantities for verified stocks and ETFs, with local edit/delete and no inferred valuation;
 - unsupported: Bitcoin extended-key scanning, uncertain Solana/Cardano NFT-like assets, and all NFTs. Portfolio and per-asset price charts are local-history views; they do not infer prices or add unsupported assets.
 
@@ -84,7 +85,7 @@ Custom chains persist validated native decimals (0–36; omitted legacy values
 migrate to 18), and the scheduler coordinator caps concurrent chain RPC work
 globally with queued aborts failing before any request starts.
 
-The read-only local catalog is searched first and requires no provider key or network request. FMP optionally extends it through the official [stable search-symbol/search-name API](https://site.financialmodelingprep.com/developer/docs/stable) with the `apikey` header and the official [Company Profile classification](https://site.financialmodelingprep.com/developer/docs/changelog). Unauthorized, rate-limited, malformed, or unclassified FMP responses do not invalidate local matches and never create an unverified FMP holding. Current stock/ETF prices still require the optional FMP quote capability.
+The read-only local catalog is searched first and requires no provider key or network request. Yahoo Finance then expands search and provides keyless stock/ETF chart quotes; FMP remains an optional encrypted-key fallback. Invalid, rate-limited, malformed, or unclassified remote responses do not invalidate local matches, create guessed instruments, or fabricate prices.
 
 Unsigned local distribution packages can be built with `npm run package:mac`
 (universal macOS), `npm run package:mac:x64`, `npm run package:mac:arm64`, or
@@ -122,4 +123,6 @@ a macOS session with a usable WindowServer.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
 [docs/PROVIDERS.md](docs/PROVIDERS.md) for the boundaries used by future
-integrations. Security expectations are in [SECURITY.md](SECURITY.md).
+integrations. The cross-platform UI, icon and visual-QA contract lives in
+[docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md). Security expectations are in
+[SECURITY.md](SECURITY.md).

@@ -87,7 +87,7 @@ test('renderer wallet onboarding, management, settings, copy, confirmation, keyb
   documentRef.elements.get('[data-add-wallet]').dispatch('click');
   documentRef.elements.get('[data-wallet-address]').value = 'solana-synthetic';
   documentRef.elements.get('[data-wallet-label]').value = 'Sol synthetic';
-  documentRef.elements.get('[data-wallet-address]').dispatch('change');
+  documentRef.elements.get('[data-wallet-address]').dispatch('input');
   await Promise.resolve();
   documentRef.elements.get('[data-wallet-form]').dispatch('submit');
   await Promise.resolve();

@@ -84,6 +84,10 @@ function nativeName(symbol: string): string {
   const known: Record<string, string> = { BTC: 'Bitcoin', ETH: 'Ethereum', SOL: 'Solana', ADA: 'Cardano', POL: 'Polygon', BNB: 'BNB', AVAX: 'Avalanche', XDAI: 'xDAI', CELO: 'Celo', MNT: 'Mantle' };
   return known[symbol.toUpperCase()] ?? symbol;
 }
+function priceSourceName(source: string): string {
+  const names: Readonly<Record<string, string>> = { 'yahoo.finance': 'Yahoo Finance', 'fmp.market': 'FMP', 'coingecko.keyless': 'CoinGecko' };
+  return names[source] ?? 'Price source';
+}
 function accountFor(position: Position, wallet: WalletSource, quantityBaseUnits: string, valueScaled: string | null): PortfolioAccountView {
   const chain = position.chainId === null ? walletNetwork(wallet) : String(position.chainId);
   return { id: position.id, label: wallet.label, family: wallet.family, chain, address: wallet.address, quantityBaseUnits, quantity: position.quantity, valueScaled };
@@ -122,7 +126,7 @@ function putPosition(groups: Map<string, Aggregate>, position: Position, wallet:
 function putHolding(groups: Map<string, Aggregate>, holding: Holding, instrument: Instrument): void {
   if (zero(holding.quantityHundredths)) return;
   const asset = assetIdentityForInstrument(instrument);
-  groups.set(asset.assetId, { assetId: asset.assetId, kind: 'instrument', symbol: instrument.symbol, name: instrument.name, source: `${instrument.exchange} · ${instrument.providerId}`, decimals: 2, quantityBaseUnits: holding.quantityHundredths, conflict: false, spamHiddenByDefault: false, spamReasons: [], accounts: [{ id: holding.id, label: instrument.exchange, family: 'broker', chain: instrument.exchange, address: instrument.providerSymbol, quantityBaseUnits: holding.quantityHundredths, quantity: holding.quantity, valueScaled: null }] });
+  groups.set(asset.assetId, { assetId: asset.assetId, kind: 'instrument', symbol: instrument.symbol, name: instrument.name, source: instrument.exchange, decimals: 2, quantityBaseUnits: holding.quantityHundredths, conflict: false, spamHiddenByDefault: false, spamReasons: [], accounts: [{ id: holding.id, label: instrument.exchange, family: 'broker', chain: instrument.exchange, address: instrument.providerSymbol, quantityBaseUnits: holding.quantityHundredths, quantity: holding.quantity, valueScaled: null }] });
 }
 
 function toAssetView(group: Aggregate, quotes: Map<string, PriceQuote>, valuations: Map<string, Valuation>, statuses: Map<string, { readonly status: string; readonly stale: boolean }>, currency: Currency): PortfolioAssetView {
@@ -136,7 +140,8 @@ function toAssetView(group: Aggregate, quotes: Map<string, PriceQuote>, valuatio
   const stale = status?.stale ?? false;
   const resolved = group.conflict ? 'partial' : status?.status === 'stale' ? 'stale' : valuation?.status ?? (priceScaled === null ? 'unpriced' : 'partial');
   const accounts = group.accounts.map(account => ({ ...account, valueScaled: group.conflict ? null : valueFor(account.quantityBaseUnits, group.decimals, priceScaled) }));
-  return { assetId: group.assetId, kind: group.kind, symbol: group.symbol, name: group.name, source: group.source, decimals: group.decimals, quantityBaseUnits: group.quantityBaseUnits, quantity: group.kind === 'instrument' ? group.accounts[0]!.quantity : formatQuantity(group.quantityBaseUnits, group.decimals), priceScaled, valueScaled, dayChangeScaled, dayChangePercentScaled: dayPercent, status: resolved as PortfolioAssetView['status'], stale, spamReasons: group.spamReasons, accounts };
+  const source = group.kind === 'instrument' && quote ? `${group.source} · ${priceSourceName(quote.source)}` : group.source;
+  return { assetId: group.assetId, kind: group.kind, symbol: group.symbol, name: group.name, source, decimals: group.decimals, quantityBaseUnits: group.quantityBaseUnits, quantity: group.kind === 'instrument' ? group.accounts[0]!.quantity : formatQuantity(group.quantityBaseUnits, group.decimals), priceScaled, valueScaled, dayChangeScaled, dayChangePercentScaled: dayPercent, status: resolved as PortfolioAssetView['status'], stale, spamReasons: group.spamReasons, accounts };
 }
 function formatQuantity(value: string, decimals: number): string {
   if (decimals === 0) return value;

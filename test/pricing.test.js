@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  COINGECKO_PROVIDER_ID, COINGECKO_SIMPLE_PRICE_URL, COINGECKO_TOKEN_PRICE_URL, FMP_BATCH_QUOTE_URL, FMP_FOREX_QUOTE_URL,
-  assetIdentityForInstrument, assetIdentityForPosition, createCoinGeckoPriceAdapter, createFmpQuoteAdapter, createPricingCoordinator, providerQuoteSymbol,
+  COINGECKO_PROVIDER_ID, COINGECKO_SIMPLE_PRICE_URL, COINGECKO_TOKEN_PRICE_URL, FMP_BATCH_QUOTE_URL, FMP_FOREX_QUOTE_URL, YAHOO_CHART_URL, YAHOO_QUOTES_PROVIDER_ID,
+  assetIdentityForInstrument, assetIdentityForPosition, createCoinGeckoPriceAdapter, createFmpQuoteAdapter, createPricingCoordinator, createYahooQuoteAdapter, providerQuoteSymbol, yahooQuoteSymbol,
   decimalToScaled, mergePriceState, scaledToDecimal, updateHistory, valueAssets
 } from '../src/shared/pricing.ts';
 import { createEmptyPortfolioState, parsePortfolioState, PRICE_SCALE } from '../src/shared/state.ts';
@@ -44,6 +44,7 @@ test('fixed-point decimals reject unsafe values and round ties deterministically
   assert.equal(decimalToScaled(`1.${'0'.repeat(37)}`), null);
   assert.equal(decimalToScaled('1.2344', 3), '1234');
   assert.equal(scaledToDecimal('-0'), '-0');
+  assert.equal(scaledToDecimal('-1'), '-0.000000000001');
   assert.equal(scaledToDecimal('-12', 0), '-12');
   assert.equal(scaledToDecimal('0'), '0');
 });
@@ -108,6 +109,82 @@ test('CoinGecko retry, cooldown, abort and malformed transport states are struct
   const abort = new AbortController(); abort.abort(); const aborted = await adapter.fetch([asset], { ...httpContext, http: fakeHttp(() => { throw new TransportError('aborted', 'aborted'); }), signal: abort.signal }); assert.equal(aborted.statuses[0].status, 'aborted');
   const defaultWait = createCoinGeckoPriceAdapter({ http: fakeHttp(() => { throw new TransportError('http', 'limited', 429); }) });
   assert.equal((await defaultWait.fetch([asset], { ...httpContext, http: fakeHttp(() => { throw new TransportError('http', 'limited', 429); }) })).statuses[0].status, 'rate-limited');
+});
+
+function yahooPayload(currency, current, previous, timestamp = 123, closes = []) {
+  return { chart: { result: [{ meta: { currency, regularMarketPrice: current, chartPreviousClose: previous, regularMarketTime: timestamp }, indicators: { quote: [{ close: closes }] } }] } };
+}
+
+test('Yahoo Finance prices keylessly convert EUR, USD and other currencies with exact source metadata', async () => {
+  const requests = [];
+  const http = fakeHttp(request => {
+    requests.push(request);
+    const symbol = decodeURIComponent(new URL(request.url).pathname.split('/').at(-1));
+    if (symbol === 'EURUSD=X') return yahooPayload('USD', 1.1, 1.09);
+    if (symbol === 'JPYUSD=X') return yahooPayload('USD', 0.007, 0.0069);
+    if (symbol === 'EUNL.DE') return yahooPayload('EUR', 100, 90);
+    if (symbol === 'USD') return yahooPayload('USD', undefined, 19, null, [null, 20]);
+    if (symbol === 'JPY') return { chart: { result: [{ meta: { currency: 'jpy', regularMarketPrice: 1000, previousClose: 900 }, indicators: { quote: [{ close: [] }] } }] } };
+    if (symbol === 'NOPREV.DE') return yahooPayload('EUR', 8, null);
+    return null;
+  });
+  const make = (id, currency, providerSymbol = id, exchange = 'SYN') => assetIdentityForInstrument({ schemaVersion: 4, id, providerId: 'holdvue.catalog', providerSymbol, symbol: id, name: 'Synthetic', exchange, currency, type: 'etf' });
+  const assets = [make('eur', 'EUR', 'EUNL.DE', 'XETRA'), make('usd', 'USD', 'USD'), make('jpy', 'JPY', 'JPY'), make('noprev', 'EUR', 'NOPREV.DE', 'XETRA')];
+  const result = await createYahooQuoteAdapter({ http }).fetch(assets, { ...httpContext, http });
+  assert.equal(result.providerId, YAHOO_QUOTES_PROVIDER_ID); assert.equal(result.partial, false); assert.equal(result.quotes.length, 4);
+  assert.equal(result.quotes.every(item => item.source === YAHOO_QUOTES_PROVIDER_ID), true);
+  assert.equal(result.quotes.find(item => item.assetId === 'instrument:eur').sourceTimestamp, 123000);
+  assert.equal(result.quotes.find(item => item.assetId === 'instrument:usd').change24hPercentScaled, '52632');
+  assert.equal(result.quotes.find(item => item.assetId === 'instrument:jpy').sourceTimestamp, null);
+  assert.equal(result.quotes.find(item => item.assetId === 'instrument:noprev').change24hPercentScaled, null);
+  assert.equal(result.quotes.find(item => item.assetId === 'instrument:noprev').previousPriceEurScaled, null);
+  assert.equal(requests.every(item => item.allowPublicPath === true), true);
+  assert.equal(requests.some(item => item.url.startsWith(`${YAHOO_CHART_URL}/EUNL.DE`)), true);
+  assert.equal(yahooQuoteSymbol(assets[0].instrument), 'EUNL.DE');
+  assert.equal(yahooQuoteSymbol({ ...assets[0].instrument, exchange: 'NYSE', providerSymbol: 'BRK.B@NYSE' }), 'BRK-B');
+  assert.equal(yahooQuoteSymbol({ ...assets[0].instrument, providerSymbol: 'bad symbol' }), null);
+});
+
+test('Yahoo Finance adapter fails closed for invalid symbols, responses, currencies, transport and FX gaps', async () => {
+  const make = (id, currency = 'EUR', providerSymbol = id) => assetIdentityForInstrument({ schemaVersion: 4, id, providerId: 'yahoo.finance', providerSymbol, symbol: id, name: 'Synthetic', exchange: 'SYN', currency, type: 'stock' });
+  const invalid = make('invalid', 'EUR', 'bad symbol');
+  const mismatch = make('mismatch'); const missing = make('missing'); const malformed = make('malformed'); const thrown = make('thrown');
+  const http = fakeHttp(request => {
+    const symbol = decodeURIComponent(new URL(request.url).pathname.split('/').at(-1));
+    if (symbol === 'mismatch') return yahooPayload('USD', 1, 1);
+    if (symbol === 'missing') return { chart: { result: [] } };
+    if (symbol === 'malformed') return { chart: { result: [{ meta: { currency: 'EU', regularMarketPrice: 1 }, indicators: {} }] } };
+    if (symbol === 'thrown') throw new TransportError('timeout', 'synthetic');
+    return yahooPayload('USD', 1.1, 1);
+  });
+  const result = await createYahooQuoteAdapter({ http, timeoutMs: 1, maxBytes: 2 }).fetch([invalid, mismatch, missing, malformed, thrown], { ...httpContext, http });
+  assert.deepEqual(result.statuses.map(item => item.errorCode), ['unsupported-asset', 'currency-mismatch', 'missing-quote', 'missing-quote', 'timeout']);
+  assert.equal(result.partial, true); assert.equal(result.quotes.length, 0);
+
+  const noFxHttp = fakeHttp(request => {
+    const symbol = decodeURIComponent(new URL(request.url).pathname.split('/').at(-1));
+    if (symbol.endsWith('=X')) throw new Error('synthetic FX failure');
+    return yahooPayload(symbol === 'gbp' ? 'GBP' : symbol === 'usd' ? 'USD' : 'EUR', 10, 9);
+  });
+  const noFx = await createYahooQuoteAdapter({ http: noFxHttp }).fetch([make('eur'), make('usd', 'USD'), make('gbp', 'GBP')], { ...httpContext, http: noFxHttp });
+  assert.equal(noFx.statuses.every(item => item.errorCode === 'fx-unavailable'), true);
+  const missingCrossHttp = fakeHttp(request => {
+    const symbol = decodeURIComponent(new URL(request.url).pathname.split('/').at(-1));
+    if (symbol === 'EURUSD=X') return yahooPayload('USD', 1.1, 1);
+    if (symbol === 'JPYUSD=X') return null;
+    return yahooPayload('JPY', 100, 90);
+  });
+  const missingCross = await createYahooQuoteAdapter({ http: missingCrossHttp }).fetch([make('jpy-cross', 'JPY')], { ...httpContext, http: missingCrossHttp });
+  assert.equal(missingCross.statuses[0].errorCode, 'fx-unavailable');
+  assert.equal((await createYahooQuoteAdapter({ http }).fetch([], { ...httpContext, http })).partial, false);
+
+  const odd = make('odd');
+  const malformedShapes = [null, {}, { chart: null }, { chart: { result: null } }, { chart: { result: [null] } }, { chart: { result: [{ meta: null }] } }, { chart: { result: [{ meta: { currency: 4 } }] } }, { chart: { result: [{ meta: { currency: 'EUR' }, indicators: null }] } }, { chart: { result: [{ meta: { currency: 'EUR' }, indicators: { quote: null } }] } }, { chart: { result: [{ meta: { currency: 'EUR' }, indicators: { quote: [null] } }] } }, { chart: { result: [{ meta: { currency: 'EUR' }, indicators: { quote: [{}] } }] } }, { chart: { result: [{ meta: { currency: 'EUR', regularMarketPrice: 0 }, indicators: { quote: [{ close: [null] }] } }] } }];
+  for (const shape of malformedShapes) {
+    const shapeHttp = fakeHttp(() => shape);
+    const shaped = await createYahooQuoteAdapter({ http: shapeHttp }).fetch([odd], { ...httpContext, http: shapeHttp });
+    assert.equal(shaped.statuses[0].errorCode, 'missing-quote');
+  }
 });
 
 test('pricing adapters fail closed across option defaults, cooldown aliases, and malformed envelopes', async () => {
@@ -306,6 +383,27 @@ test('pricing coordinator handles network fallbacks, duplicate quantities, skipp
   assert.equal(failed.results.length, 1);
   const noMatch = await createPricingCoordinator({ providers: [skipped], now: () => 5 }).run({ ...state, positions: [], instruments: [], holdings: [] }, { http: fakeHttp(() => ({})) });
   assert.equal(noMatch.results.length, 0);
+});
+
+test('pricing coordinator honors explicit keyless-provider switches and falls back after missing Yahoo quotes', async () => {
+  const base = createEmptyPortfolioState();
+  const instrument = { schemaVersion: 4, id: 'switch', providerId: 'holdvue.catalog', providerSymbol: 'SWITCH.DE', symbol: 'SWITCH', name: 'Synthetic Switch ETF', exchange: 'XETRA', currency: 'EUR', type: 'etf' };
+  const state = { ...base, instruments: [instrument], holdings: [{ schemaVersion: 4, id: 'holding-switch', instrumentId: instrument.id, quantityHundredths: '100', quantity: '1', updatedAt: 1 }] };
+  let yahooCalls = 0; let fallbackCalls = 0;
+  const missingYahoo = { id: YAHOO_QUOTES_PROVIDER_ID, async fetch(assets) { yahooCalls++; return { providerId: YAHOO_QUOTES_PROVIDER_ID, quotes: [], statuses: assets.map(asset => ({ assetId: asset.assetId, providerId: YAHOO_QUOTES_PROVIDER_ID, status: 'unpriced', errorCode: 'missing-quote', lastGoodFetchedAt: null })), partial: true }; } };
+  const fallback = { id: 'fmp.market', async fetch(assets, context) { fallbackCalls++; return { providerId: 'fmp.market', quotes: assets.map(asset => quote(asset.assetId)), statuses: assets.map(asset => ({ assetId: asset.assetId, providerId: 'fmp.market', status: 'ok', errorCode: null, lastGoodFetchedAt: context.now })), partial: false }; } };
+  const run = await createPricingCoordinator({ providers: [missingYahoo, fallback], now: () => 20 }).run(state, { http: fakeHttp(() => ({})) });
+  assert.equal(yahooCalls, 1); assert.equal(fallbackCalls, 1); assert.equal(run.valuation.valuedAssets, 1); assert.equal(run.state.prices.statuses[0].providerId, 'fmp.market');
+
+  const disabled = { ...state, settings: { ...state.settings, providerRefs: [{ providerId: YAHOO_QUOTES_PROVIDER_ID, keyId: null, enabled: false }, { providerId: COINGECKO_PROVIDER_ID, keyId: null, enabled: false }] } };
+  yahooCalls = 0; fallbackCalls = 0;
+  const disabledRun = await createPricingCoordinator({ providers: [missingYahoo, fallback], now: () => 21 }).run(disabled, { http: fakeHttp(() => ({})) });
+  assert.equal(yahooCalls, 0); assert.equal(fallbackCalls, 1); assert.equal(disabledRun.valuation.valuedAssets, 1);
+  let cryptoCalls = 0;
+  const crypto = { id: COINGECKO_PROVIDER_ID, async fetch() { cryptoCalls++; throw new Error('disabled provider was called'); } };
+  const cryptoState = { ...disabled, positions: [nativePosition()] };
+  const cryptoRun = await createPricingCoordinator({ providers: [crypto], now: () => 22 }).run(cryptoState, { http: fakeHttp(() => ({})) });
+  assert.equal(cryptoCalls, 0); assert.equal(cryptoRun.results.length, 0);
 });
 
 test('pricing totals and portfolio history exclude hidden or quarantined assets while retaining their prices', async () => {

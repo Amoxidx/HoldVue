@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "sourceHash": "276f48b56da298e29d259728d0a61a803017bf5ecac42fc4284bbf1e4ba70cd3",
+  "pngSizes": [
+    16,
+    20,
+    24,
+    32,
+    40,
+    48,
+    64,
+    96,
+    128,
+    256,
+    512,
+    1024
+  ]
+}

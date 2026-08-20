@@ -11,6 +11,7 @@ test('chart geometry and markup cover empty, single and compact multi-point stat
   assert.match(chartMarkup(config([])), /data-chart-empty/);
   const one = chartMarkup(config(points(1))); assert.doesNotMatch(one, /polyline/); assert.doesNotMatch(one, /chart-area/); assert.match(one, /chart-point/);
   const many = chartMarkup(config(), 'en'); assert.match(many, /chart-guide/); assert.match(many, /chart-area/); assert.match(many, /chart-crosshair/); assert.match(many, /text-anchor/); assert.equal((many.match(/chart-x-label/g) ?? []).length, 3);
+  const twoUsd = chartMarkup({ ...config(points(2)), currency: 'USD' }, 'en'); assert.equal((twoUsd.match(/chart-x-label/g) ?? []).length, 2);
   assert.match(chartMarkup(config([{ ...points(1)[0], valueEurScaled: '1234500000000' }]), 'de'), /1,23/);
   assert.match(chartMarkup({ ...config(), range: '7D' }), /chart-x-label/);
   assert.match(chartMarkup({ ...config(), range: '1M' }), /chart-x-label/);
@@ -29,6 +30,10 @@ test('chart tooltip is exact, range labels adapt and pointer/keyboard indicators
   assert.match(chartTooltip({ timestamp: 0, value: '1230000000000' }, 'USD', 'en', 'price'), /Unit price/);
   assert.match(chartTooltip({ timestamp: 0, value: '1230000000000' }, 'EUR', 'de', 'value'), /Portfoliowert/);
   assert.match(chartTooltip({ timestamp: 0, value: '1230000000000' }, 'USD', 'en', 'value'), /Portfolio value/);
+  assert.match(chartTooltip({ timestamp: 0, value: '1234567890000000' }, 'EUR', 'de', 'price'), /1\.234,56 EUR/);
+  assert.match(chartTooltip({ timestamp: 0, value: '1' }, 'EUR', 'de', 'price'), /0,000000000001 EUR/);
+  assert.match(chartTooltip({ timestamp: 0, value: '0' }, 'USD', 'en', 'price'), /0 USD/);
+  assert.match(chartTooltip({ timestamp: 0, value: '-1230000000000' }, 'USD', 'en', 'value'), /−1\.23 USD/);
   const dom = new JSDOM('<div id="host" tabindex="0"></div>'); const host = dom.window.document.querySelector('#host');
   host.getBoundingClientRect = () => ({ left: 0, width: 400 });
   const seen = []; const dispose = bindChart(host, { ...config(), range: '1Y', unit: 'price' }, 'en', (index, tooltip) => seen.push([index, tooltip]));
@@ -38,9 +43,13 @@ test('chart tooltip is exact, range labels adapt and pointer/keyboard indicators
   host.dispatchEvent(new dom.window.MouseEvent('pointermove', { bubbles: true, clientX: 5 }));
   host.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
   host.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+  host.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'End', bubbles: true })); assert.equal(host.getAttribute('data-chart-index'), '2');
+  host.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Home', bubbles: true })); assert.equal(host.getAttribute('data-chart-index'), '0');
   host.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+  host.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
   const invalidMove = new dom.window.MouseEvent('pointermove', { bubbles: true }); Object.defineProperty(invalidMove, 'clientX', { value: Number.NaN }); Object.defineProperty(invalidMove, 'offsetX', { value: Number.NaN }); host.dispatchEvent(invalidMove);
   host.getBoundingClientRect = () => ({ left: 0, width: 0 }); Object.defineProperty(host, 'clientWidth', { configurable: true, value: 300 }); host.dispatchEvent(new dom.window.MouseEvent('pointermove', { bubbles: true, clientX: 150 })); Object.defineProperty(host, 'clientWidth', { configurable: true, value: 0 }); host.dispatchEvent(new dom.window.MouseEvent('pointermove', { bubbles: true, clientX: 150 }));
+  host.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   host.dispatchEvent(new dom.window.MouseEvent('pointerleave', { bubbles: true }));
   assert.ok(seen.length >= 3); assert.equal(host.querySelector('[data-chart-crosshair]').hasAttribute('hidden'), true);
   dispose();

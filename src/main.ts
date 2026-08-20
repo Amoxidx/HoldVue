@@ -12,8 +12,8 @@ import { createJsonRpcPort, createScanCoordinator } from './shared/scanner.ts';
 import { createFetchTransport } from './shared/transport.ts';
 import { createSyncCoordinator } from './shared/sync.ts';
 import { createSafeStorageSecretStore, JsonEncryptedBlobStore, type SafeStorageLike } from './shared/secrets.ts';
-import { createCombinedSearchAdapter, createFmpSearchAdapter, createLocalCatalogSearchAdapter } from './shared/market.ts';
-import { createCoinGeckoPriceAdapter, createFmpQuoteAdapter, createPricingCoordinator } from './shared/pricing.ts';
+import { createCombinedSearchAdapter, createFmpSearchAdapter, createLocalCatalogSearchAdapter, createYahooSearchAdapter } from './shared/market.ts';
+import { createCoinGeckoPriceAdapter, createFmpQuoteAdapter, createPricingCoordinator, createYahooQuoteAdapter } from './shared/pricing.ts';
 import type { StateStorage } from './shared/storage.ts';
 import type { SecretStore } from './shared/secrets.ts';
 
@@ -43,7 +43,7 @@ export function buildRuntimePaths(moduleUrl: string): { preload: string; rendere
   return {
     preload: join(moduleDirectory, 'preload.cjs'),
     renderer: join(moduleDirectory, 'renderer', 'index.html'),
-    icon: join(moduleDirectory, 'renderer', 'holdvue-icon.png')
+    icon: join(moduleDirectory, 'renderer', 'holdvue-window-icon.png')
   };
 }
 
@@ -69,6 +69,7 @@ export function startMain(load: ElectronLoader = loadRuntimeModule, factory: Com
   const getFmpKey = createFmpKeyGetter(storage, secrets);
   const instrumentSearch = createCombinedSearchAdapter([
     createLocalCatalogSearchAdapter(),
+    createYahooSearchAdapter({ http: transport }),
     createFmpSearchAdapter({ http: transport, getApiKey: getFmpKey })
   ]);
   const nativeCoordinator = createScanCoordinator(4);
@@ -77,6 +78,7 @@ export function startMain(load: ElectronLoader = loadRuntimeModule, factory: Com
     now: Date.now,
     providers: [
       createCoinGeckoPriceAdapter({ http: transport }),
+      createYahooQuoteAdapter({ http: transport }),
       createFmpQuoteAdapter({
         http: transport,
         getApiKey: getFmpKey

@@ -10,6 +10,8 @@ const PRICE_SCALE = 12 as const;
 export const COINGECKO_PROVIDER_ID = 'coingecko.keyless';
 export const COINGECKO_SIMPLE_PRICE_URL = 'https://api.coingecko.com/api/v3/simple/price';
 export const COINGECKO_TOKEN_PRICE_URL = 'https://api.coingecko.com/api/v3/simple/token_price';
+export const YAHOO_QUOTES_PROVIDER_ID = 'yahoo.finance';
+export const YAHOO_CHART_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
 export const FMP_QUOTES_PROVIDER_ID = 'fmp.market';
 export const FMP_BATCH_QUOTE_URL = 'https://financialmodelingprep.com/stable/batch-quote';
 export const FMP_FOREX_QUOTE_URL = 'https://financialmodelingprep.com/stable/quote';
@@ -220,6 +222,72 @@ export function providerQuoteSymbol(instrument: Instrument): string {
   const isLegacyLocalXetra = instrument.providerId === 'holdvue.catalog' && instrument.exchange.toUpperCase() === 'XETRA' && !legacySymbol.includes('.');
   return isLegacyLocalXetra ? `${legacySymbol}.DE` : legacySymbol;
 }
+
+export function yahooQuoteSymbol(instrument: Instrument): string | null {
+  const symbol = providerQuoteSymbol(instrument);
+  if (!/^[A-Za-z0-9.^=-]{1,32}$/.test(symbol)) return null;
+  return (instrument.exchange.toUpperCase() === 'NYSE' || instrument.exchange.toUpperCase() === 'NASDAQ') ? symbol.replace('.', '-') : symbol;
+}
+
+interface YahooQuoteOptions { readonly http: HttpJsonPort; readonly timeoutMs?: number; readonly maxBytes?: number; }
+interface YahooChartValue { readonly currency: string; readonly current: string; readonly previous: string | null; readonly timestamp: number | null; }
+
+function yahooChartValue(value: unknown): YahooChartValue | null {
+  if (!record(value) || !record(value.chart) || !Array.isArray(value.chart.result) || !record(value.chart.result[0])) return null;
+  const result = value.chart.result[0];
+  if (!record(result.meta) || typeof result.meta.currency !== 'string' || !/^[A-Za-z]{3}$/.test(result.meta.currency)) return null;
+  const closes = record(result.indicators) && Array.isArray(result.indicators.quote) && record(result.indicators.quote[0]) && Array.isArray(result.indicators.quote[0].close) ? result.indicators.quote[0].close : [];
+  const lastClose = [...closes].reverse().find(item => positiveScaled(item) !== null);
+  const current = positiveScaled(result.meta.regularMarketPrice) ?? positiveScaled(lastClose);
+  if (!current) return null;
+  const previous = positiveScaled(result.meta.chartPreviousClose) ?? positiveScaled(result.meta.previousClose);
+  const seconds = safeTimestamp(result.meta.regularMarketTime);
+  return { currency: result.meta.currency.toUpperCase(), current, previous, timestamp: seconds === null ? null : seconds * 1000 };
+}
+
+function convertYahooPrice(value: string, currency: string, eurUsd: string | null, currencyUsd: string | null): { readonly eur: string; readonly usd: string } | null {
+  const scale = 10n ** BigInt(PRICE_SCALE);
+  if (currency === 'EUR') return eurUsd ? { eur: value, usd: roundedDivide(BigInt(value) * BigInt(eurUsd), scale).toString() } : null;
+  if (currency === 'USD') return eurUsd ? { eur: roundedDivide(BigInt(value) * scale, BigInt(eurUsd)).toString(), usd: value } : null;
+  if (!eurUsd || !currencyUsd) return null;
+  const usd = roundedDivide(BigInt(value) * BigInt(currencyUsd), scale).toString();
+  return { eur: roundedDivide(BigInt(usd) * scale, BigInt(eurUsd)).toString(), usd };
+}
+
+export function createYahooQuoteAdapter(options: YahooQuoteOptions): PriceProvider {
+  return { id: YAHOO_QUOTES_PROVIDER_ID, async fetch(assets, context) {
+    const instrumentAssets = assets.filter(asset => asset.kind === 'instrument' && asset.instrument);
+    const statuses: PriceStatus[] = []; const quotes: PriceQuote[] = []; const values = new Map<string, YahooChartValue>();
+    const request = async (symbol: string): Promise<YahooChartValue | null> => yahooChartValue(await options.http.requestJson<unknown>({ url: `${YAHOO_CHART_URL}/${encodeURIComponent(symbol)}?range=5d&interval=1d&events=history`, timeoutMs: options.timeoutMs ?? 10_000, maxBytes: options.maxBytes ?? 256_000, allowPublicPath: true }, context.signal));
+    for (const asset of instrumentAssets) {
+      const symbol = yahooQuoteSymbol(asset.instrument!);
+      if (!symbol) { statuses.push(statusFor(asset.assetId, YAHOO_QUOTES_PROVIDER_ID, 'unpriced', 'unsupported-asset', null)); continue; }
+      try {
+        const value = await request(symbol);
+        if (!value || value.currency !== asset.instrument!.currency.toUpperCase()) statuses.push(statusFor(asset.assetId, YAHOO_QUOTES_PROVIDER_ID, 'unpriced', value ? 'currency-mismatch' : 'missing-quote', null));
+        else values.set(asset.assetId, value);
+      } catch (error) { const mapped = mapError(error); statuses.push(statusFor(asset.assetId, YAHOO_QUOTES_PROVIDER_ID, mapped.status, mapped.code, null)); }
+    }
+    const currencies = new Set([...values.values()].map(value => value.currency));
+    const fx = new Map<string, string>();
+    const fetchFx = async (symbol: string): Promise<void> => {
+      try { const value = await request(symbol); if (value) fx.set(symbol, value.current); } catch { /* represented as partial below */ }
+    };
+    if (currencies.size > 0) await fetchFx('EURUSD=X');
+    for (const currency of currencies) if (currency !== 'EUR' && currency !== 'USD') await fetchFx(`${currency}USD=X`);
+    for (const asset of instrumentAssets) {
+      const value = values.get(asset.assetId); if (!value) continue;
+      const converted = convertYahooPrice(value.current, value.currency, fx.get('EURUSD=X') ?? null, fx.get(`${value.currency}USD=X`) ?? null);
+      const previous = value.previous ? convertYahooPrice(value.previous, value.currency, fx.get('EURUSD=X') ?? null, fx.get(`${value.currency}USD=X`) ?? null) : null;
+      if (!converted) { statuses.push(statusFor(asset.assetId, YAHOO_QUOTES_PROVIDER_ID, 'partial', 'fx-unavailable', null)); continue; }
+      const change = value.previous ? roundedDivide((BigInt(value.current) - BigInt(value.previous)) * 10000n * 100n, BigInt(value.previous)).toString() : null;
+      quotes.push(quote(asset.assetId, converted.eur, converted.usd, YAHOO_QUOTES_PROVIDER_ID, context.now, value.timestamp, change, previous?.eur ?? null, previous?.usd ?? null));
+      statuses.push(statusFor(asset.assetId, YAHOO_QUOTES_PROVIDER_ID, 'ok', null, context.now));
+    }
+    return { providerId: YAHOO_QUOTES_PROVIDER_ID, quotes, statuses, partial: statuses.some(status => status.status !== 'ok') };
+  } };
+}
+
 export function createFmpQuoteAdapter(options: FmpQuoteOptions): PriceProvider {
   const requestedBatch = Number(options.maxBatch); const batch = Number.isSafeInteger(requestedBatch) && requestedBatch > 0 && requestedBatch <= 50 ? requestedBatch : 20;
   return { id: FMP_QUOTES_PROVIDER_ID, async fetch(assets, context) {
@@ -364,10 +432,13 @@ export function createPricingCoordinator(dependencies: PricingCoordinatorDepende
           const assets = [...positionAssets, ...state.instruments.filter(instrument => state.holdings.some(holding => holding.instrumentId === instrument.id)).map(assetIdentityForInstrument)];
           const uniqueAssets = [...new Map(assets.map(asset => [asset.assetId, asset])).values()];
           const providerResults: PriceProviderResult[] = [];
+          const resolvedAssets = new Set<string>();
           for (const provider of dependencies.providers) {
-            const selected = uniqueAssets.filter(asset => provider.id === COINGECKO_PROVIDER_ID ? asset.kind !== 'instrument' : asset.kind === 'instrument');
+            const explicitlyDisabled = (provider.id === COINGECKO_PROVIDER_ID || provider.id === YAHOO_QUOTES_PROVIDER_ID) && state.settings.providerRefs.some(reference => reference.providerId === provider.id && reference.enabled === false);
+            if (explicitlyDisabled) continue;
+            const selected = uniqueAssets.filter(asset => provider.id === COINGECKO_PROVIDER_ID ? asset.kind !== 'instrument' : asset.kind === 'instrument' && !resolvedAssets.has(asset.assetId));
             if (selected.length === 0) continue;
-            try { providerResults.push(await provider.fetch(selected, { http: context.http, signal: taskController.signal, now: dependencies.now() })); } catch (error) { const mapped = mapError(error); providerResults.push({ providerId: provider.id, quotes: [], statuses: selected.map(asset => statusFor(asset.assetId, provider.id, mapped.status, mapped.code, null)), partial: true }); }
+            try { const result = await provider.fetch(selected, { http: context.http, signal: taskController.signal, now: dependencies.now() }); providerResults.push(result); for (const item of result.quotes) resolvedAssets.add(item.assetId); } catch (error) { const mapped = mapError(error); providerResults.push({ providerId: provider.id, quotes: [], statuses: selected.map(asset => statusFor(asset.assetId, provider.id, mapped.status, mapped.code, null)), partial: true }); }
           }
           const allQuotes = providerResults.flatMap(result => result.quotes); const quoteMap = new Map(allQuotes.map(item => [item.assetId, item]));
           const included = includedAssetIds(state, uniqueAssets, spamAssetIds);

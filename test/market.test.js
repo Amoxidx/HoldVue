@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createCombinedSearchAdapter, createFmpSearchAdapter, createLocalCatalogSearchAdapter, FMP_PROFILE_URL, FMP_SEARCH_NAME_URL, FMP_SEARCH_SYMBOL_URL, LOCAL_CATALOG_PROVIDER_ID } from '../src/shared/market.ts';
+import { createCombinedSearchAdapter, createFmpSearchAdapter, createLocalCatalogSearchAdapter, createYahooSearchAdapter, FMP_PROFILE_URL, FMP_SEARCH_NAME_URL, FMP_SEARCH_SYMBOL_URL, LOCAL_CATALOG_PROVIDER_ID, YAHOO_PROVIDER_ID, YAHOO_SEARCH_URL } from '../src/shared/market.ts';
 import { TransportError } from '../src/shared/transport.ts';
 
 function httpFixture(responses) {
@@ -94,6 +94,50 @@ test('combined search merges catalog and optional providers without making a mis
   assert.equal((await combined.resolve(duplicate)).providerId, 'fmp.market');
   assert.equal((await createCombinedSearchAdapter([local, unconfigured]).resolve(duplicate)).code, 'unconfigured');
   assert.equal((await createCombinedSearchAdapter([local]).resolve(duplicate)).code, 'unsupported');
+});
+
+test('Yahoo Finance search is keyless, filters instrument types and resolves exact canonical metadata', async () => {
+  const response = { quotes: [
+    { symbol: 'SYN', longname: 'Synthetic Equity', exchange: 'SYNX', currency: 'usd', quoteType: 'EQUITY' },
+    { symbol: 'SYN', longname: 'Duplicate Synthetic Equity', exchange: 'SYNX', currency: 'USD', quoteType: 'EQUITY' },
+    { symbol: 'ETF.DE', shortname: 'Synthetic ETF', exchDisp: 'Synthetic Display', currency: 'EUR', quoteType: 'ETF' },
+    { symbol: 'INFER.DE', shortname: 'Inferred Euro ETF', exchange: 'GER', quoteType: 'ETF' },
+    { symbol: 'USINFER', shortname: 'Inferred US Equity', exchange: 'NMS', quoteType: 'EQUITY' },
+    { symbol: 'FUND', shortname: 'Unsupported Fund', exchange: 'SYNX', currency: 'USD', quoteType: 'MUTUALFUND' },
+    { symbol: 'BAD', shortname: 'Bad currency', exchange: 'SYNX', currency: 'US', quoteType: 'EQUITY' },
+    { symbol: 'NOCURRENCY', shortname: 'Missing currency', exchange: 'SYNX', quoteType: 'EQUITY' },
+    { symbol: 'BADTYPE', shortname: 'Bad type', exchange: 'SYNX', currency: 'USD', quoteType: 4 },
+    { symbol: 'NONAME', exchange: 'SYNX', currency: 'USD', quoteType: 'EQUITY' },
+    null
+  ] };
+  const fixture = httpFixture({ [new URL(YAHOO_SEARCH_URL).pathname]: response });
+  const adapter = createYahooSearchAdapter({ http: fixture.http, maxResults: 5, timeoutMs: 1, maxBytes: 2 });
+  const found = await adapter.search('syn');
+  assert.equal(found.ok, true);
+  if (!found.ok) return;
+  assert.deepEqual(found.value.map(item => [item.providerId, item.symbol, item.type]), [[YAHOO_PROVIDER_ID, 'SYN', 'stock'], [YAHOO_PROVIDER_ID, 'ETF.DE', 'etf'], [YAHOO_PROVIDER_ID, 'INFER.DE', 'etf'], [YAHOO_PROVIDER_ID, 'USINFER', 'stock']]);
+  assert.equal(new URL(fixture.calls[0].url).searchParams.get('q'), 'syn');
+  assert.equal(fixture.calls[0].timeoutMs, 1); assert.equal(fixture.calls[0].maxBytes, 2);
+  assert.equal((await adapter.resolve(found.value[0])).name, 'Synthetic Equity');
+  assert.equal((await adapter.resolve({ ...found.value[0], providerSymbol: 'MISSING' })).code, 'unsupported');
+  assert.equal((await adapter.resolve({ ...found.value[0], providerId: 'other' })).code, 'unsupported');
+});
+
+test('Yahoo Finance search validates input and maps malformed and transport failures', async () => {
+  const malformed = httpFixture({ [new URL(YAHOO_SEARCH_URL).pathname]: {} });
+  const adapter = createYahooSearchAdapter({ http: malformed.http, maxResults: 0 });
+  assert.equal((await adapter.search('')).code, 'invalid-query');
+  assert.equal((await adapter.search(4)).code, 'invalid-query');
+  assert.equal((await adapter.search('x'.repeat(121))).code, 'invalid-query');
+  assert.equal((await adapter.search('x')).code, 'malformed');
+  assert.equal((await adapter.resolve({ providerId: YAHOO_PROVIDER_ID, providerSymbol: 'SYN', symbol: 'SYN', name: 'Synthetic', exchange: 'SYN', currency: 'USD', type: 'stock' })).code, 'malformed');
+  const timeout = httpFixture({ [new URL(YAHOO_SEARCH_URL).pathname]: new TransportError('timeout', 'synthetic') });
+  assert.equal((await createYahooSearchAdapter({ http: timeout.http, maxResults: 51 }).search('x')).code, 'timeout');
+  const empty = httpFixture({ [new URL(YAHOO_SEARCH_URL).pathname]: { quotes: [] } });
+  const emptyResult = await createYahooSearchAdapter({ http: empty.http }).search('x');
+  assert.equal(emptyResult.ok && emptyResult.value.length, 0);
+  const badQuotes = httpFixture({ [new URL(YAHOO_SEARCH_URL).pathname]: { quotes: null } });
+  assert.equal((await createYahooSearchAdapter({ http: badQuotes.http }).search('x')).code, 'malformed');
 });
 
 test('FMP search combines official symbol/name schemas, ranks and deduplicates safely', async () => {

@@ -261,7 +261,7 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
     const window = new options.BrowserWindow({
       width: 980,
       height: 680,
-      minWidth: 720,
+      minWidth: 480,
       minHeight: 480,
       title: 'HoldVue',
       icon: options.paths.icon,

@@ -60,6 +60,14 @@ function compactDecimal(value: string, locale: string): string {
   const result = whole === '0' && significant !== '' ? `0.${'0'.repeat(zeros)}${significant}` : `${whole}.${significant}`;
   return locale === 'de' ? result.replace('.', ',') : result;
 }
+function localizedChartValue(value: string, locale: string): string {
+  const decimal = scaledToDecimal(value); const negative = decimal.startsWith('-'); const unsigned = negative ? decimal.slice(1) : decimal;
+  const [whole = '0', fraction = ''] = unsigned.split('.'); const firstSignificant = fraction.search(/[1-9]/);
+  const precision = whole !== '0' ? 2 : firstSignificant < 0 ? 0 : Math.min(12, firstSignificant + 4);
+  const shownFraction = fraction.slice(0, precision).replace(/0+$/, '');
+  const grouped = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(BigInt(whole));
+  return `${negative ? '−' : ''}${grouped}${shownFraction ? `${locale === 'de' ? ',' : '.'}${shownFraction}` : ''}`;
+}
 function yLabels(values: readonly string[], currency: Currency, locale: string): readonly string[] {
   if (values.length === 0) return [];
   const numeric = values.map(value => BigInt(value));
@@ -81,7 +89,7 @@ export function buildChartGeometry(config: ChartConfig): ChartGeometry {
 
 export function chartMarkup(config: ChartConfig, locale = 'de'): string {
   const geometry = buildChartGeometry(config); const values = chartValues(config.points, config.currency); const labels = xLabels(config.points, locale, config.range); const ys = yLabels(values, config.currency, locale);
-  if (config.points.length === 0) return `<div class="chart-empty" data-chart-empty>${escape(config.summary)}</div>`;
+  if (config.points.length === 0) return `<div class="chart-empty" data-chart-empty><svg class="icon chart-empty-icon" aria-hidden="true" focusable="false"><use href="#icon-chart"></use></svg><span>${escape(config.summary)}</span></div>`;
   const polyline = geometry.points.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
   const circles = geometry.points.map((point, index) => `<circle class="chart-point" cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${config.points.length === 1 ? '4' : '2.5'}" data-chart-index="${index}" aria-hidden="true"></circle>`).join('');
   const guides = ys.map((_, index) => { const y = ys.length === 1 ? 18 : 18 + index * (geometry.height - 48) / (ys.length - 1); return `<line class="chart-guide" x1="58" x2="${geometry.width - 12}" y1="${y.toFixed(2)}" y2="${y.toFixed(2)}"></line>`; }).join('');
@@ -89,7 +97,7 @@ export function chartMarkup(config: ChartConfig, locale = 'de'): string {
   const xIndexes = labels.length === 1 ? [0] : labels.length === 2 ? [0, geometry.points.length - 1] : [0, Math.floor((geometry.points.length - 1) / 2), geometry.points.length - 1];
   const xText = labels.map((label, index) => `<text class="chart-x-label" text-anchor="${index === 0 ? 'start' : index === labels.length - 1 ? 'end' : 'middle'}" x="${geometry.points[xIndexes[index]!]!.x.toFixed(2)}" y="${geometry.height - 4}">${escape(label)}</text>`).join('');
   const line = geometry.points.length > 1 ? `<polygon class="chart-area" points="${geometry.points[0]!.x.toFixed(2)},${geometry.height - 30} ${polyline} ${geometry.points.at(-1)!.x.toFixed(2)},${geometry.height - 30}"></polygon><polyline class="chart-line" points="${polyline}"></polyline>` : '';
-  return `<svg class="portfolio-chart" viewBox="0 0 ${geometry.width} ${geometry.height}" role="img" aria-label="${escape(config.title)}" data-chart-kind="${config.unit}" data-single-point="${config.points.length === 1}"><title>${escape(config.title)}</title><desc>${escape(config.summary)}</desc>${guides}<line class="chart-crosshair" data-chart-crosshair x1="0" x2="0" y1="18" y2="${geometry.height - 30}" hidden></line>${line}${circles}${yText}${xText}</svg><div class="chart-tooltip" data-chart-tooltip hidden></div>`;
+  return `<svg class="portfolio-chart" viewBox="0 0 ${geometry.width} ${geometry.height}" role="img" aria-label="${escape(config.title)}" data-chart-kind="${config.unit}" data-single-point="${config.points.length === 1}"><title>${escape(config.title)}</title><desc>${escape(config.summary)}</desc>${guides}<line class="chart-crosshair" data-chart-crosshair x1="0" x2="0" y1="18" y2="${geometry.height - 30}" hidden></line>${line}${circles}${yText}${xText}</svg><div class="chart-tooltip" data-chart-tooltip role="status" aria-live="polite" hidden></div>`;
 }
 
 export function nearestChartPoint(points: readonly { readonly x: number; readonly timestamp: number; readonly value: string }[], x: number): number | null {
@@ -101,7 +109,7 @@ export function nearestChartPoint(points: readonly { readonly x: number; readonl
 export function chartTooltip(point: { readonly timestamp: number; readonly value: string } | null, currency: Currency, locale = 'de', unit: 'price' | 'value' = 'value'): string {
   if (!point) return '';
   const label = unit === 'price' ? (locale === 'de' ? 'Stückpreis' : 'Unit price') : (locale === 'de' ? 'Portfoliowert' : 'Portfolio value');
-  return `${formatDate(point.timestamp, locale)} · ${label}: ${scaledToDecimal(point.value)} ${currency}`;
+  return `${formatDate(point.timestamp, locale)} · ${label}: ${localizedChartValue(point.value, locale)} ${currency}`;
 }
 
 export function bindChart(host: ChartHost, config: ChartConfig, locale: string, onPoint?: (index: number | null, tooltip: string) => void): () => void {
@@ -111,7 +119,12 @@ export function bindChart(host: ChartHost, config: ChartConfig, locale: string, 
   const indicator = (index: number | null): void => { const crosshair = host.querySelector('[data-chart-crosshair]')!; const points = host.querySelectorAll('[data-chart-index]'); if (index === null) crosshair.setAttribute('hidden', 'true'); else { crosshair.removeAttribute('hidden'); const point = geometry.points[index]!; crosshair.setAttribute('x1', point.x.toFixed(2)); crosshair.setAttribute('x2', point.x.toFixed(2)); } for (const point of points) point.setAttribute('data-active', String(point.getAttribute('data-chart-index') === String(index))); };
   const move = (event: Event): void => { const index = pointFromEvent(event); if (index !== null) host.setAttribute('data-chart-index', String(index)); indicator(index); onPoint?.(index, index === null ? '' : chartTooltip({ timestamp: config.points[index]!.timestamp, value: valueOf(config.points[index]!, config.currency) }, config.currency, locale, config.unit)); };
   const leave = (): void => { indicator(null); onPoint?.(null, ''); };
-  const key = (event: Event): void => { const keyValue = (event as KeyboardEvent).key; const current = Number(host.getAttribute('data-chart-index') ?? '-1'); const next = keyValue === 'ArrowRight' ? Math.min(current + 1, config.points.length - 1) : keyValue === 'ArrowLeft' ? Math.max(current - 1, 0) : current; if (next !== current && next >= 0) { event.preventDefault(); host.setAttribute('data-chart-index', String(next)); indicator(next); const point = config.points[next]!; onPoint?.(next, chartTooltip({ timestamp: point.timestamp, value: valueOf(point, config.currency) }, config.currency, locale, config.unit)); } };
+  const key = (event: Event): void => {
+    const keyValue = (event as KeyboardEvent).key; const current = Number(host.getAttribute('data-chart-index') ?? '-1');
+    if (keyValue === 'Escape') { leave(); return; }
+    const next = keyValue === 'ArrowRight' ? Math.min(current + 1, config.points.length - 1) : keyValue === 'ArrowLeft' ? Math.max(current - 1, 0) : keyValue === 'Home' ? 0 : keyValue === 'End' ? config.points.length - 1 : current;
+    if (next !== current && next >= 0) { event.preventDefault(); host.setAttribute('data-chart-index', String(next)); indicator(next); const point = config.points[next]!; onPoint?.(next, chartTooltip({ timestamp: point.timestamp, value: valueOf(point, config.currency) }, config.currency, locale, config.unit)); }
+  };
   if (svg) { host.addEventListener('pointermove', move); host.addEventListener('pointerleave', leave); host.addEventListener('keydown', key); }
   return () => { if (svg) { host.removeEventListener('pointermove', move); host.removeEventListener('pointerleave', leave); host.removeEventListener('keydown', key); } };
 }

@@ -3,6 +3,8 @@ import { TransportError, type HttpJsonPort } from './transport.ts';
 
 export const FMP_PROVIDER_ID = 'fmp.market';
 export const LOCAL_CATALOG_PROVIDER_ID = 'holdvue.catalog';
+export const YAHOO_PROVIDER_ID = 'yahoo.finance';
+export const YAHOO_SEARCH_URL = 'https://query1.finance.yahoo.com/v1/finance/search';
 export const FMP_SEARCH_SYMBOL_URL = 'https://financialmodelingprep.com/stable/search-symbol';
 export const FMP_SEARCH_NAME_URL = 'https://financialmodelingprep.com/stable/search-name';
 export const FMP_PROFILE_URL = 'https://financialmodelingprep.com/stable/profile';
@@ -71,6 +73,69 @@ export function createLocalCatalogSearchAdapter(maxResults = 10): InstrumentSear
       if (candidate.providerId !== LOCAL_CATALOG_PROVIDER_ID) return { ok: false, code: 'unsupported', message: 'This instrument provider is unsupported.' };
       const canonical = LOCAL_CATALOG.find(entry => entry.providerSymbol === candidate.providerSymbol);
       return canonical ? catalogCandidate(canonical) as InstrumentInput : { ok: false, code: 'unsupported', message: 'This catalog instrument is unsupported.' };
+    }
+  };
+}
+
+export interface YahooSearchOptions {
+  readonly http: HttpJsonPort;
+  readonly maxResults?: number;
+  readonly timeoutMs?: number;
+  readonly maxBytes?: number;
+}
+
+function yahooType(value: unknown): InstrumentType | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.toUpperCase();
+  return normalized === 'ETF' ? 'etf' : normalized === 'EQUITY' ? 'stock' : null;
+}
+
+function yahooCurrency(value: unknown, symbol: string, exchange: string): string | null {
+  const direct = text(value, 8)?.toUpperCase() ?? null;
+  if (direct && /^[A-Z]{3}$/.test(direct)) return direct;
+  const normalizedSymbol = symbol.toUpperCase(); const normalizedExchange = exchange.toUpperCase();
+  if (normalizedSymbol.endsWith('.DE') || normalizedExchange === 'XETRA' || normalizedExchange === 'GER') return 'EUR';
+  if (['NASDAQ', 'NMS', 'NGM', 'NCM', 'NYSE', 'NYQ', 'ASE'].includes(normalizedExchange)) return 'USD';
+  return null;
+}
+
+function yahooCandidates(value: unknown): InstrumentCandidate[] {
+  if (!isRecord(value) || !Array.isArray(value.quotes)) throw new Error('malformed');
+  const candidates: InstrumentCandidate[] = [];
+  for (const item of value.quotes) {
+    if (!isRecord(item)) continue;
+    const symbol = text(item.symbol, 80); const name = text(item.longname ?? item.shortname, 160);
+    const exchange = text(item.exchDisp ?? item.exchange, 80); const type = yahooType(item.quoteType);
+    if (!symbol || !name || !exchange || !type) continue;
+    const currency = yahooCurrency(item.currency, symbol, exchange); if (!currency) continue;
+    candidates.push({ providerId: YAHOO_PROVIDER_ID, providerSymbol: symbol, symbol, name, exchange, currency, type });
+  }
+  return candidates;
+}
+
+export function createYahooSearchAdapter(options: YahooSearchOptions): InstrumentSearchAdapter {
+  const requested = Number(options.maxResults); const maxResults = Number.isSafeInteger(requested) && requested > 0 && requested <= 50 ? requested : 10;
+  const fetchCandidates = async (query: string, signal?: AbortSignal): Promise<InstrumentCandidate[] | InstrumentSearchFailure> => {
+    const normalized = typeof query === 'string' ? query.trim() : '';
+    if (normalized.length === 0 || normalized.length > 120) return { ok: false, code: 'invalid-query', message: 'Search text is invalid.' };
+    try {
+      const url = `${YAHOO_SEARCH_URL}?q=${encodeURIComponent(normalized)}&quotesCount=${maxResults}&newsCount=0&listsCount=0&enableFuzzyQuery=false`;
+      return yahooCandidates(await options.http.requestJson<unknown>({ url, timeoutMs: options.timeoutMs ?? 10_000, maxBytes: options.maxBytes ?? 512_000 }, signal));
+    } catch (error) { return mapError(error); }
+  };
+  return {
+    async search(query, signal) {
+      const result = await fetchCandidates(query, signal);
+      if (!Array.isArray(result)) return result;
+      const deduped = new Map(result.map(candidate => [candidate.providerSymbol.toUpperCase(), candidate]));
+      return { ok: true, value: [...deduped.values()].slice(0, maxResults), partial: false };
+    },
+    async resolve(candidate, signal) {
+      if (candidate.providerId !== YAHOO_PROVIDER_ID) return { ok: false, code: 'unsupported', message: 'This instrument provider is unsupported.' };
+      const result = await fetchCandidates(candidate.providerSymbol, signal);
+      if (!Array.isArray(result)) return result;
+      const resolved = result.find(item => item.providerSymbol.toUpperCase() === candidate.providerSymbol.toUpperCase());
+      return resolved ? { ...resolved, type: resolved.type as InstrumentType } : { ok: false, code: 'unsupported', message: 'The selected Yahoo Finance instrument is no longer available.' };
     }
   };
 }

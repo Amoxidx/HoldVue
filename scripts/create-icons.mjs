@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -6,43 +7,56 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const branding = join(root, 'assets', 'branding');
-const source = join(branding, 'holdvue-icon-master.png');
+const fullSource = join(branding, 'holdvue-icon.svg');
+const smallSource = join(branding, 'holdvue-icon-small.svg');
+const master = join(branding, 'holdvue-icon-master.png');
 const icns = join(branding, 'holdvue.icns');
 const ico = join(branding, 'holdvue.ico');
-const sizes = [16, 24, 32, 48, 64, 128, 256];
+const manifest = join(branding, 'icon-build.json');
+const pngSizes = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256, 512, 1024];
+const icoSizes = pngSizes.filter(size => size <= 256);
+const outputPaths = [master, icns, ico, ...pngSizes.map(size => join(branding, `holdvue-${size}.png`))];
 
-if (!existsSync(source)) throw new Error('Branding source is missing.');
-if (existsSync(icns) && existsSync(ico) && process.env.HOLDVUE_REBUILD_ICONS !== '1') {
-  console.log('HoldVue icons already exist; set HOLDVUE_REBUILD_ICONS=1 to regenerate them.');
+if (!existsSync(fullSource) || !existsSync(smallSource)) throw new Error('HoldVue SVG branding sources are missing.');
+const sourceHash = createHash('sha256').update(readFileSync(fullSource)).update(readFileSync(smallSource)).digest('hex');
+let currentHash = '';
+try { currentHash = JSON.parse(readFileSync(manifest, 'utf8')).sourceHash ?? ''; } catch { currentHash = ''; }
+if (process.env.HOLDVUE_REBUILD_ICONS !== '1' && currentHash === sourceHash && outputPaths.every(existsSync)) {
+  console.log('HoldVue icon outputs match the versioned SVG sources.');
   process.exit(0);
 }
+if (process.platform !== 'darwin') throw new Error('Branding sources changed. Regenerate checked-in ICNS/ICO outputs on macOS before packaging.');
 
-const sips = process.platform === 'darwin' ? '/usr/bin/sips' : 'sips';
-if (process.platform !== 'darwin') throw new Error('Regenerating ICNS/ICO requires macOS sips/iconutil; checked-in outputs remain usable on Windows CI.');
+const magickCandidates = ['/opt/homebrew/bin/magick', '/usr/local/bin/magick'];
+const magick = magickCandidates.find(existsSync);
+if (!magick) throw new Error('ImageMagick is required to render the versioned SVG branding sources.');
 
 mkdirSync(branding, { recursive: true });
 const temporary = mkdtempSync(join(tmpdir(), 'holdvue-icons-'));
+const render = (source, size, destination) => execFileSync(magick, ['-background', 'none', '-density', '256', source, '-resize', `${size}x${size}`, '-strip', `PNG32:${destination}`], { stdio: 'ignore' });
+const sourceForSize = size => size <= 48 ? smallSource : fullSource;
+
 try {
+  render(fullSource, 1024, master);
   const pngs = new Map();
-  for (const size of sizes) {
+  for (const size of pngSizes) {
     const destination = join(branding, `holdvue-${size}.png`);
-    execFileSync(sips, ['-z', String(size), String(size), source, '--out', destination], { stdio: 'ignore' });
+    render(sourceForSize(size), size, destination);
     pngs.set(size, readFileSync(destination));
   }
+
   const iconset = join(temporary, 'holdvue.iconset');
   mkdirSync(iconset);
   for (const [name, size] of [[16, 16], [32, 32], [128, 128], [256, 256], [512, 512]]) {
-    const normal = join(iconset, `icon_${name}x${name}.png`);
-    const retina = join(iconset, `icon_${name}x${name}@2x.png`);
-    execFileSync(sips, ['-z', String(size), String(size), source, '--out', normal], { stdio: 'ignore' });
-    execFileSync(sips, ['-z', String(size * 2), String(size * 2), source, '--out', retina], { stdio: 'ignore' });
+    render(sourceForSize(size), size, join(iconset, `icon_${name}x${name}.png`));
+    render(sourceForSize(size * 2), size * 2, join(iconset, `icon_${name}x${name}@2x.png`));
   }
   execFileSync('/usr/bin/iconutil', ['-c', 'icns', iconset, '-o', icns], { stdio: 'ignore' });
 
   const header = Buffer.alloc(6);
-  header.writeUInt16LE(0, 0); header.writeUInt16LE(1, 2); header.writeUInt16LE(pngs.size, 4);
-  const entries = []; const data = []; let offset = 6 + pngs.size * 16;
-  for (const size of sizes) {
+  header.writeUInt16LE(0, 0); header.writeUInt16LE(1, 2); header.writeUInt16LE(icoSizes.length, 4);
+  const entries = []; const data = []; let offset = 6 + icoSizes.length * 16;
+  for (const size of icoSizes) {
     const image = pngs.get(size);
     const entry = Buffer.alloc(16);
     entry[0] = size === 256 ? 0 : size; entry[1] = size === 256 ? 0 : size; entry[2] = 0; entry[3] = 0;
@@ -50,6 +64,8 @@ try {
     entries.push(entry); data.push(image); offset += image.length;
   }
   writeFileSync(ico, Buffer.concat([header, ...entries, ...data]));
+  writeFileSync(manifest, `${JSON.stringify({ schemaVersion: 1, sourceHash, pngSizes }, null, 2)}\n`);
+  console.log(`HoldVue icons regenerated from SVG sources (${sourceHash.slice(0, 12)}).`);
 } finally {
   rmSync(temporary, { recursive: true, force: true });
 }

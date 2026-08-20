@@ -1,7 +1,8 @@
 # Provider and chain references
 
-HoldVue does not ship provider credentials or silently select a live service.
-The chain registry is metadata only; users must explicitly configure an HTTPS
+HoldVue does not ship provider credentials. An empty portfolio performs no
+network request; adding a wallet or manual holding explicitly creates the asset
+scope for its enabled provider. The chain registry is metadata only; users must explicitly configure an HTTPS
 RPC endpoint for direct EVM RPC scanning, or configure the documented
 Etherscan fallback. Provider API keys, if needed for a capability or service
 limit, are referenced by an internally generated `ref_...`
@@ -88,8 +89,8 @@ per-chain `errorCode: 'aborted'` result without starting RPC work.
 | Solana native + fungible token accounts | implemented/configured through JSON-RPC | SPL and Token-2022 are read with raw amounts; NFT-like/uncertain rows are filtered |
 | Cardano native + fungible assets | implemented/configured through Koios | strict response/fungibility checks; Blockfrost is not required |
 | Crypto market prices | implemented/configured through CoinGecko keyless routes | supported mainnet native/known contracts only; testnet/devnet/unsupported platforms remain unpriced; no provider key or AI/LLM-token dependency |
-| Stock/ETF market prices | implemented/configured through FMP batch quote + official FX quote | optional encrypted provider key and tier required; missing FX/quotes remain partial; no price inference |
-| Instrument search | implemented keylessly for the bundled local catalog; optionally expanded with FMP | local entries resolve to immutable canonical metadata; FMP uses official `search-symbol` + `search-name` and profile-verifies every FMP add |
+| Stock/ETF market prices | implemented keylessly through Yahoo Finance chart data, with optional FMP fallback | strict symbol/currency/FX validation; missing or limited quotes remain partial; no price inference |
+| Instrument search | implemented through the local catalog and keyless Yahoo Finance search; optionally expanded with FMP | remote candidates are type-filtered and resolved by exact provider identity before persistence |
 | NFTs | not supported | no state or scanner type |
 
 The application shell exposes narrow Etherscan and FMP password fields only for
@@ -106,7 +107,7 @@ optional provider runs, HoldVue searches a bounded checked-in catalog locally;
 its entries are immutable, contain no user data, and resolve only by their exact
 catalog identity. Unauthorized, rate-limited, malformed, or unclassified FMP
 responses are structured failures and do not remove valid local suggestions.
-The provider does not supply prices in this milestone and no price is inferred.
+Yahoo Finance supplies keyless current chart quotes; FMP can provide a configured fallback. No price is inferred when either provider fails.
 It starts a coordinator only with injected composition,
 and the default settings have no enabled provider/endpoints, so a fresh install
 performs no live request. A configured sync performs one startup scan, manual
@@ -181,6 +182,13 @@ FMP requests batch quotes for the selected manual instruments and loads
 refresh. Symbol matching, positive prices, timestamps, and previous-close
 fields are strict. Missing daily fields yield a quote without a fabricated
 zero-percent change; missing FX leaves that instrument partial/unpriced.
+
+Yahoo Finance requests one bounded chart response per unresolved manual
+instrument plus only the required `EURUSD=X` and non-EUR/USD cross rates.
+Exchange-qualified symbols are validated and encoded as public path data;
+currency mismatches, missing closes, redirects, malformed envelopes, and FX
+gaps fail closed. The pricing coordinator invokes FMP only for instruments that
+did not receive a valid Yahoo quote.
 
 The refresh pipeline preserves last-good quotes and marks their status stale
 when a provider fails. New history points are written only for successful,

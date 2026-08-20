@@ -38,15 +38,27 @@ test('real index DOM wires every dialog control, locale, focus, full address and
     onMinute() { return () => undefined; }
   };
   const controller = createRendererController(dom.window.document, api);
-  controller.start();
+  const disposeController = controller.start();
+  for (const button of dom.window.document.querySelectorAll('button.icon-button')) assert.ok(button.getAttribute('aria-label'));
+  const earlyProvider = dom.window.document.querySelector('[data-provider-id="evm"]');
+  earlyProvider.checked = true;
+  earlyProvider.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
   const earlyEndpoint = dom.window.document.querySelector('[data-provider-endpoint="solana.rpc"]');
   earlyEndpoint.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
   const earlyRpc = dom.window.document.querySelector('[data-rpc-chain-id="1"]');
   earlyRpc.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
   await controller.render();
   const documentRef = dom.window.document;
-  documentRef.querySelector('[data-refresh]').dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
+  assert.equal(documentRef.querySelector('[data-status]').getAttribute('data-state'), 'neutral');
+  assert.equal(documentRef.querySelector('[data-settings-advanced]').open, false);
+  assert.match(documentRef.querySelector('[data-settings-advanced] summary').textContent, /Erweiterte/);
+  const refreshButton = documentRef.querySelector('[data-refresh]');
+  refreshButton.dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
+  assert.equal(refreshButton.disabled, true); assert.equal(refreshButton.getAttribute('aria-busy'), 'true');
+  assert.equal(documentRef.querySelector('[data-status]').getAttribute('data-state'), 'busy');
   await flush();
+  assert.equal(refreshButton.disabled, false); assert.equal(refreshButton.getAttribute('aria-busy'), 'false');
+  assert.equal(documentRef.querySelector('[data-status]').getAttribute('data-state'), 'neutral');
   assert.equal(documentRef.querySelectorAll('[data-wallet-cancel]').length, 1);
   assert.equal(documentRef.querySelectorAll('[data-wallet-cancel-close]').length, 1);
   assert.equal(documentRef.querySelectorAll('[data-settings-close]').length, 1);
@@ -86,6 +98,13 @@ test('real index DOM wires every dialog control, locale, focus, full address and
   await flush();
   assert.equal(keyInput.value, '');
   documentRef.querySelector('[data-etherscan-key-delete]').dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
+  assert.equal(documentRef.querySelector('[data-key-delete-provider]').textContent, 'Etherscan');
+  documentRef.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(documentRef.querySelector('[data-key-delete-dialog]').hidden, true);
+  documentRef.querySelector('[data-key-delete-confirm]').click();
+  documentRef.querySelector('[data-etherscan-key-delete]').click();
+  documentRef.querySelector('[data-key-delete-confirm]').click();
+  await flush();
 
   const add = documentRef.querySelector('[data-add-wallet]');
   add.dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
@@ -93,31 +112,50 @@ test('real index DOM wires every dialog control, locale, focus, full address and
   const detectionResult = documentRef.querySelector('[data-wallet-detection-result]');
   const family = documentRef.querySelector('[data-wallet-family]');
   assert.equal(detectionResult.dataset.state, 'idle');
+  assert.equal(documentRef.querySelector('[data-detection-icon-use]').getAttribute('href'), '#icon-scan');
   assert.match(documentRef.querySelector('[data-wallet-detection]').textContent, /eingeben|einfügen/i);
   assert.equal(family.hidden, true);
   assert.equal(family.disabled, true);
+  documentRef.querySelector('[data-wallet-detect]').click();
+  address.value = 'x'.repeat(257);
+  documentRef.querySelector('[data-wallet-detect]').click();
+  assert.equal(detectionResult.dataset.state, 'error');
+  assert.equal(documentRef.querySelector('[data-detection-icon-use]').getAttribute('href'), '#icon-alert-circle');
   address.value = syntheticEvm;
+  address.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  assert.equal(documentRef.querySelector('[data-detection-icon-use]').getAttribute('href'), '#icon-loader');
   documentRef.querySelector('[data-wallet-detect]').dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
   await flush();
   assert.equal(detectionResult.dataset.state, 'success');
+  assert.equal(documentRef.querySelector('[data-detection-icon-use]').getAttribute('href'), '#icon-check-circle');
   assert.match(documentRef.querySelector('[data-wallet-detection]').textContent, /EVM/);
   assert.equal(family.value, 'evm');
   assert.equal(family.disabled, true);
   const allCommon = documentRef.querySelector('[data-wallet-all-evm]');
   const chainInput = documentRef.querySelector('[data-chain-id]');
   assert.equal(chainInput.disabled, true);
+  assert.equal(documentRef.querySelector('[data-evm-chains]').hidden, true);
   allCommon.checked = false;
   allCommon.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
   assert.equal(chainInput.disabled, false);
+  assert.equal(documentRef.querySelector('[data-evm-chains]').hidden, false);
   documentRef.querySelector('[data-wallet-label]').value = 'Manual without chain';
   documentRef.querySelector('[data-wallet-form]').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
   await flush();
   assert.match(documentRef.querySelector('[data-wallet-error]').textContent, /mindestens/i);
+  assert.equal(documentRef.querySelector('[data-global-feedback]').hidden, false);
   documentRef.querySelector('[data-wallet-cancel-close]').dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
   assert.equal(documentRef.activeElement, add);
   add.dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
+  documentRef.querySelector('[data-wallet-address]').value = syntheticEvm;
+  documentRef.querySelector('[data-wallet-address]').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
   documentRef.querySelector('[data-wallet-cancel]').dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
   assert.equal(documentRef.activeElement, add);
+  add.dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
+  documentRef.querySelector('[data-wallet-address]').value = syntheticEvm;
+  documentRef.querySelector('[data-wallet-address]').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  documentRef.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(documentRef.querySelector('[data-wallet-dialog]').hidden, true);
   add.dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
   documentRef.querySelector('[data-wallet-address]').value = syntheticEvm;
   documentRef.querySelector('[data-wallet-address]').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
@@ -131,6 +169,13 @@ test('real index DOM wires every dialog control, locale, focus, full address and
   await flush();
   assert.match(documentRef.querySelector('[data-wallet-error]').textContent, /ungültig/i);
   documentRef.querySelector('[data-wallet-cancel]').dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
+
+  add.click();
+  documentRef.querySelector('[data-wallet-address]').value = syntheticEvm;
+  documentRef.querySelector('[data-wallet-address]').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  documentRef.querySelector('[data-wallet-action="edit"]').click();
+  assert.match(documentRef.querySelector('[data-wallet-dialog-title]').textContent, /bearbeiten/i);
+  documentRef.querySelector('[data-wallet-cancel]').click();
 
   const edit = documentRef.querySelector('[data-wallet-action="edit"]');
   edit.focus();
@@ -189,17 +234,46 @@ test('real index DOM wires every dialog control, locale, focus, full address and
   evmProvider.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
   await flush();
   assert.deepEqual(state.settings.enabledProviderIds, ['evm']);
+  const yahooProvider = documentRef.querySelector('[data-provider-id="yahoo.finance"]');
+  const geckoProvider = documentRef.querySelector('[data-provider-id="coingecko.keyless"]');
+  assert.equal(yahooProvider.checked, true);
+  assert.equal(geckoProvider.checked, true);
+  yahooProvider.checked = false;
+  yahooProvider.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+  await flush();
+  assert.equal(state.settings.providerRefs.find(item => item.providerId === 'yahoo.finance').enabled, false);
+  assert.match(documentRef.querySelector('[data-fmp-key-status]').textContent, /Keine automatische|No automatic/);
+  yahooProvider.checked = true;
+  yahooProvider.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+  await flush();
+  geckoProvider.checked = false;
+  geckoProvider.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+  await flush();
+  assert.equal(state.settings.providerRefs.find(item => item.providerId === 'coingecko.keyless').enabled, false);
+  geckoProvider.checked = true;
+  geckoProvider.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+  await flush();
+  assert.equal(state.settings.providerRefs.find(item => item.providerId === 'coingecko.keyless').enabled, true);
   documentRef.querySelector('[data-setting-locale]').value = 'en';
   documentRef.querySelector('[data-setting-locale]').dispatchEvent(new dom.window.Event('change', { bubbles: true }));
   await flush();
   assert.equal(documentRef.documentElement.lang, 'en');
-  assert.equal(documentRef.querySelector('h1').textContent, 'Your portfolio stays local.');
+  assert.equal(documentRef.querySelector('h1').textContent, 'Your portfolio at a glance.');
   assert.match(documentRef.querySelector('[data-footer-summary]').textContent, /^USD · EN · Dark$/);
   for (const status of ['rate-limited', 'error', 'partial', 'ok', 'empty']) {
     state = { ...state, sync: { schemaVersion: 1, statuses: [{ walletId: 'dom-wallet', family: 'evm', providerId: 'evm', status, lastAttemptAt: 1, lastSuccessAt: status === 'ok' ? 1 : null, errorCode: status === 'ok' ? null : status }] } };
     await controller.render();
+    assert.equal(documentRef.querySelector('[data-status]').getAttribute('data-state'), ({ 'rate-limited': 'warning', error: 'error', partial: 'warning', ok: 'ready', empty: 'neutral' })[status]);
     if (status === 'ok') assert.match(documentRef.querySelector('[data-sync-summary]').textContent, /Last wallet synchronization/);
   }
+  state = { ...state, settings: { ...state.settings, locale: 'de' }, sync: { schemaVersion: 1, statuses: [{ walletId: 'older', family: 'evm', providerId: 'evm', status: 'ok', lastAttemptAt: 1, lastSuccessAt: 1, errorCode: null }, { walletId: 'newer', family: 'evm', providerId: 'evm', status: 'ok', lastAttemptAt: 2000, lastSuccessAt: 2000, errorCode: null }] } };
+  await controller.render();
+  const expectedLatest = new Intl.DateTimeFormat('de-DE', { dateStyle: 'short', timeStyle: 'short' }).format(2000);
+  assert.match(documentRef.querySelector('[data-sync-summary]').textContent, new RegExp(expectedLatest.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  add.click();
+  documentRef.querySelector('[data-wallet-address]').value = syntheticEvm;
+  documentRef.querySelector('[data-wallet-address]').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  disposeController();
 });
 
 test('real DOM ignores out-of-order address detection results', async () => {
@@ -219,11 +293,19 @@ test('real DOM ignores out-of-order address detection results', async () => {
   const first = `0x${'1'.repeat(40)}`; const second = `0x${'2'.repeat(40)}`;
   input.value = first; input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
   input.value = second; input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  for (let attempt = 0; attempt < 20 && !pending.has(second); attempt += 1) await new Promise(resolve => setTimeout(resolve, 25));
   pending.get(second)({ ok: true, family: 'evm', normalized: second });
   await flush();
-  pending.get(first)({ ok: true, family: 'bitcoin', normalized: first, network: 'mainnet' });
+  pending.get(first)?.({ ok: true, family: 'bitcoin', normalized: first, network: 'mainnet' });
   await flush();
   assert.match(dom.window.document.querySelector('[data-wallet-detection]').textContent, /EVM/);
+  assert.equal(dom.window.document.querySelector('[data-wallet-family]').value, 'evm');
+  const third = `0x${'3'.repeat(40)}`; const changedWithoutEvent = `0x${'4'.repeat(40)}`;
+  input.value = third; input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  for (let attempt = 0; attempt < 20 && !pending.has(third); attempt += 1) await new Promise(resolve => setTimeout(resolve, 25));
+  input.value = changedWithoutEvent;
+  pending.get(third)({ ok: true, family: 'bitcoin', normalized: third, network: 'mainnet' });
+  await flush();
   assert.equal(dom.window.document.querySelector('[data-wallet-family]').value, 'evm');
 });
 
@@ -232,6 +314,7 @@ test('real DOM supports offline instrument search, exact holdings CRUD, keyboard
   const instrument = { providerId: 'fmp.market', providerSymbol: 'SYN@SYN', symbol: 'SYN', name: 'Synthetic World ETF', exchange: 'SYN', currency: 'EUR', type: 'unknown' };
   const resolvedInstrument = { ...instrument, type: 'etf' };
   let state = { schemaVersion: 4, settings: { ...settings(), providerRefs: [] }, positions: [], wallets: [], instruments: [], holdings: [] };
+  let refreshCalls = 0;
   const pending = new Map();
   const api = {
     async getState() { return success(state); },
@@ -241,7 +324,7 @@ test('real DOM supports offline instrument search, exact holdings CRUD, keyboard
     async updateHolding(id, input) { state = { ...state, holdings: state.holdings.map(item => item.id === id ? { ...item, quantity: input.quantity, quantityHundredths: input.quantity === '4.5' ? '450' : item.quantityHundredths } : item) }; return success(state); },
     async deleteHolding(id) { state = { ...state, holdings: state.holdings.filter(item => item.id !== id), instruments: [] }; return success(state); },
     async addWallet() { return success(state); }, async updateWallet() { return success(state); }, async deleteWallet() { return success(state); }, async copyWalletAddress() { return success({ copied: true }); },
-    async refresh() { return success(state); }, async updateSettings(patch) { state = { ...state, settings: { ...state.settings, ...patch } }; return success(state); },
+    async refresh() { refreshCalls++; return success(state); }, async updateSettings(patch) { state = { ...state, settings: { ...state.settings, ...patch } }; return success(state); },
     async setEtherscanKey() { return success(state); }, async deleteEtherscanKey() { return success(state); }, async setFmpKey() { state = { ...state, settings: { ...state.settings, providerRefs: [{ providerId: 'fmp.market', keyId: 'ref_fmp.market_synthetic', enabled: true }] } }; return success(state); }, async deleteFmpKey() { state = { ...state, settings: { ...state.settings, providerRefs: [] } }; return success(state); },
     onMinute() { return () => undefined; }
   };
@@ -287,10 +370,11 @@ test('real DOM supports offline instrument search, exact holdings CRUD, keyboard
   quantity.value = '1.234';
   documentRef.querySelector('[data-holding-form]').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
   assert.match(documentRef.querySelector('[data-holding-error]').textContent, /höchstens zwei/i);
-  quantity.value = '1.23';
+  quantity.value = '1,23';
   documentRef.querySelector('[data-holding-form]').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
   await flush();
   assert.equal(state.holdings[0].quantity, '1.23');
+  assert.equal(refreshCalls, 1);
   assert.equal(documentRef.activeElement, add);
   const staleHoldingDelete = documentRef.querySelector('[data-holding-action="delete"]');
   const holdingsState = state;
@@ -303,9 +387,11 @@ test('real DOM supports offline instrument search, exact holdings CRUD, keyboard
   edit.focus();
   edit.click();
   assert.equal(documentRef.querySelector('[data-instrument-search]').disabled, true);
+  assert.equal(documentRef.querySelector('[data-instrument-search-field]').hidden, true);
   documentRef.querySelector('[data-holding-quantity]').value = '4.5';
   documentRef.querySelector('[data-holding-form]').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
   await flush();
+  assert.equal(refreshCalls, 2);
   assert.equal(documentRef.activeElement, documentRef.querySelector('[data-holding-action="edit"]'));
   const del = documentRef.querySelector('[data-holding-action="delete"]');
   del.focus();
@@ -329,7 +415,14 @@ test('real DOM supports offline instrument search, exact holdings CRUD, keyboard
   await flush();
   assert.match(documentRef.querySelector('[data-fmp-key-status]').textContent, /konfiguriert/i);
   documentRef.querySelector('[data-fmp-key-delete]').click();
+  assert.equal(documentRef.querySelector('[data-key-delete-dialog]').hidden, false);
+  assert.equal(documentRef.querySelector('[data-key-delete-provider]').textContent, 'FMP');
+  documentRef.querySelector('[data-key-delete-cancel]').click();
+  assert.equal(documentRef.querySelector('[data-key-delete-dialog]').hidden, true);
+  documentRef.querySelector('[data-fmp-key-delete]').click();
+  documentRef.querySelector('[data-key-delete-confirm]').click();
   await flush();
+  assert.equal(documentRef.querySelector('[data-key-delete-dialog]').hidden, true);
   documentRef.querySelector('[data-fmp-key-save]').click();
   assert.match(documentRef.querySelector('[data-wallet-error]').textContent, /Eingaben/i);
   documentRef.querySelector('[data-settings-close]').click();
@@ -430,13 +523,18 @@ test('real DOM renders fixed-point valuation summary and fail-closed unavailable
   const controller = createRendererController(dom.window.document, api);
   await controller.render();
   assert.equal(dom.window.document.querySelector('[data-portfolio-total]').textContent, '—');
-  assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /Keine Preisquelle/);
+  assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /Noch kein Kurs/);
   current = { ...state, settings: { ...state.settings, currency: 'USD' }, prices: { ...state.prices, quotes: [], valuations: [{ assetId: 'instrument:instrument-price', quantityBaseUnits: '100', quantityDecimals: 2, priceEurScaled: null, priceUsdScaled: '1000000000000', valueEurScaled: null, valueUsdScaled: '1000000000000', dayChangeEurScaled: null, dayChangeUsdScaled: null, dayChangePercentScaled: null, status: 'valued' }] } };
-  await controller.render(); assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /Keine Preisquelle/);
+  await controller.render(); assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /Noch kein Kurs/);
   current = { ...state, prices: { ...state.prices, quotes: [{ assetId: 'instrument:instrument-price', priceEurScaled: '1230000000000', priceUsdScaled: '1300000000000', scale: 12, change24hPercentScaled: null, previousPriceEurScaled: null, previousPriceUsdScaled: null, source: 'synthetic', sourceTimestamp: null, fetchedAt: 1 }], valuations: [{ assetId: 'instrument:instrument-price', quantityBaseUnits: '100', quantityDecimals: 2, priceEurScaled: '1230000000000', priceUsdScaled: '1300000000000', valueEurScaled: '1230000000000', valueUsdScaled: '1300000000000', dayChangeEurScaled: null, dayChangeUsdScaled: null, dayChangePercentScaled: null, status: 'valued' }], totalEurScaled: '1230000000000', totalUsdScaled: '1300000000000', valuedAssets: 1, totalAssets: 1, complete: true } };
   await controller.render(); assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /1,23/);
+  for (const [source, expected] of [['yahoo.finance', 'Yahoo Finance'], ['fmp.market', 'FMP'], ['coingecko.keyless', 'CoinGecko']]) {
+    current = { ...current, prices: { ...current.prices, quotes: [{ ...current.prices.quotes[0], source }] } };
+    await controller.render();
+    assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, new RegExp(expected));
+  }
   current = { ...current, settings: { ...current.settings, currency: 'USD' }, prices: { ...current.prices, quotes: [{ ...current.prices.quotes[0], priceEurScaled: null, priceUsdScaled: null }], valuations: [] } };
-  await controller.render(); assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /Keine Preisquelle/);
+  await controller.render(); assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /Noch kein Kurs/);
   current = { ...current, settings: { ...current.settings, locale: 'en' }, prices: { ...current.prices, quotes: [{ ...current.prices.quotes[0], priceEurScaled: '1230000000000', priceUsdScaled: '1300000000000' }] } };
   await controller.render(); assert.match(dom.window.document.querySelector('[data-holding-list]').textContent, /USD/);
 });
@@ -472,6 +570,15 @@ test('local catalog selection explains keyless save and unconfigured price CTA o
   const dispose = controller.start();
   await controller.render();
   const documentRef = dom.window.document;
+  searchCandidate = { ...candidate, providerId: 'fmp.market' };
+  documentRef.querySelector('[data-add-holding]').click();
+  documentRef.querySelector('[data-instrument-search]').value = 'fmp-unconfigured';
+  documentRef.querySelector('[data-instrument-search]').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  await new Promise(resolve => setTimeout(resolve, 315));
+  documentRef.querySelector('[data-instrument-index="0"]').click();
+  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /Yahoo Finance/i);
+  documentRef.querySelector('[data-holding-cancel]').click();
+  searchCandidate = candidate;
   documentRef.querySelector('[data-add-holding]').click();
   const search = documentRef.querySelector('[data-instrument-search]');
   search.value = 'eunl';
@@ -482,23 +589,38 @@ test('local catalog selection explains keyless save and unconfigured price CTA o
   documentRef.querySelector('[data-holding-quantity]').value = '1';
   documentRef.querySelector('[data-holding-form]').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
   await new Promise(resolve => setImmediate(resolve));
+  assert.equal(documentRef.querySelector('[data-position-count]').textContent, '1');
   const holdingText = documentRef.querySelector('[data-holding-list]').textContent;
-  assert.match(holdingText, /Keine Preisquelle eingerichtet/);
+  assert.match(holdingText, /Noch kein Kurs/);
   assert.doesNotMatch(holdingText, /Preis nicht verfügbar ·/);
+  assert.equal(documentRef.querySelector('[data-price-source-setup]'), null);
+  state = { ...state, settings: { ...state.settings, providerRefs: [{ providerId: 'yahoo.finance', keyId: null, enabled: false }] }, prices: { ...state.prices, statuses: [] } };
+  await controller.render();
+  documentRef.querySelector('[data-add-holding]').click();
+  documentRef.querySelector('[data-instrument-search]').value = 'local-disabled';
+  documentRef.querySelector('[data-instrument-search]').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  await new Promise(resolve => setTimeout(resolve, 315));
+  documentRef.querySelector('[data-instrument-index="0"]').click();
+  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /Yahoo Finance/i);
+  documentRef.querySelector('[data-holding-cancel]').click();
   const setup = documentRef.querySelector('[data-price-source-setup]');
   assert.ok(setup);
   setup.click();
   assert.equal(documentRef.querySelector('[data-settings-dialog]').hidden, false);
+  assert.equal(documentRef.activeElement, documentRef.querySelector('[data-provider-id="yahoo.finance"]'));
+  assert.match(documentRef.querySelector('[data-fmp-key]').previousElementSibling.textContent, /optional|Fallback/i);
+  documentRef.querySelector('[data-settings-close]').click();
+  documentRef.querySelector('[data-provider-id="yahoo.finance"]').remove();
+  setup.click();
   assert.equal(documentRef.activeElement, documentRef.querySelector('[data-fmp-key]'));
-  assert.match(documentRef.querySelector('[data-fmp-key]').previousElementSibling.textContent, /automatische Aktien/);
   documentRef.querySelector('[data-settings-close]').click();
   documentRef.querySelector('[data-holding-action="edit"]').click();
-  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /Automatische Kurse benötigen/);
+  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /Yahoo Finance|automatische Standardkurse/i);
   documentRef.querySelector('[data-holding-cancel]').click();
   state = { ...state, settings: { ...state.settings, providerRefs: [{ providerId: 'fmp.market', keyId: 'ref_fmp.market_synthetic', enabled: true }] } };
   await controller.render();
   documentRef.querySelector('[data-holding-action="edit"]').click();
-  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /konfiguriert|configured/i);
+  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /Yahoo|keyless|konfiguriert|configured/i);
   documentRef.querySelector('[data-holding-cancel]').click();
   documentRef.querySelector('[data-add-holding]').click();
   const configuredSearch = documentRef.querySelector('[data-instrument-search]');
@@ -506,7 +628,7 @@ test('local catalog selection explains keyless save and unconfigured price CTA o
   configuredSearch.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
   await new Promise(resolve => setTimeout(resolve, 315));
   documentRef.querySelector('[data-instrument-index="0"]').click();
-  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /automatische Kurse sind aktiv|automatic prices are active/i);
+  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /Yahoo Finance|keyless|automatische Kurse sind aktiv|automatic prices are active/i);
   documentRef.querySelector('[data-holding-cancel]').click();
   searchCandidate = { ...candidate, providerId: 'fmp.market' };
   documentRef.querySelector('[data-add-holding]').click();
@@ -514,12 +636,12 @@ test('local catalog selection explains keyless save and unconfigured price CTA o
   configuredSearch.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
   await new Promise(resolve => setTimeout(resolve, 315));
   documentRef.querySelector('[data-instrument-index="0"]').click();
-  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /automatische Aktien.*aktiv|automatic stock.*active/i);
+  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /Yahoo Finance|FMP-Fallback|automatische Aktien.*aktiv|automatic stock.*active/i);
   documentRef.querySelector('[data-holding-cancel]').click();
   state = { ...state, instruments: state.instruments.map(instrument => ({ ...instrument, providerId: 'fmp.market' })) };
   await controller.render();
   documentRef.querySelector('[data-holding-action="edit"]').click();
-  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /automatische Aktien.*aktiv|automatic stock.*active/i);
+  assert.match(documentRef.querySelector('[data-instrument-price-hint]').textContent, /Yahoo Finance|FMP-Fallback|automatische Aktien.*aktiv|automatic stock.*active/i);
   documentRef.querySelector('[data-holding-cancel]').click();
   for (const [status, expected] of [['partial', 'teilweise'], ['rate-limited', 'Limit'], ['error', 'nicht erreichbar'], ['aborted', 'nicht erreichbar'], ['ok', 'Preis noch nicht verfügbar']]) {
     state = { ...state, prices: { ...state.prices, statuses: [{ assetId: 'instrument:instrument-eunl', providerId: 'fmp.market', status, errorCode: null, lastGoodFetchedAt: null }] } };
