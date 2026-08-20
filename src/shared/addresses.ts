@@ -10,7 +10,6 @@ export type AddressValidation = AddressMatch | AddressFailure;
 /** Maximum public-address/xpub input accepted before any expensive decoding. */
 export const MAX_PUBLIC_INPUT_LENGTH = 256;
 
-const HEX = /^[0-9a-fA-F]+$/;
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 const MASK_64 = (1n << 64n) - 1n;

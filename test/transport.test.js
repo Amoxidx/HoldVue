@@ -32,7 +32,7 @@ test('HTTP transport rejects unsafe URLs and supports only development localhost
   const transport = createFetchTransport(async () => response('{}'));
   await assert.rejects(transport.requestJson({ url: 'not-a-url' }), error => error.code === 'invalid-url');
   await assert.rejects(transport.requestJson({ url: 'http://remote.invalid' }), error => error.code === 'invalid-url');
-  for (const url of ['https://192.168.1.10', 'https://rpc.localhost', 'https://rpc.local', 'https://[::1]']) await assert.rejects(transport.requestJson({ url }), error => error.code === 'invalid-url');
+  for (const url of ['https://192.168.1.10', 'https://100.64.0.1', 'https://198.18.0.1', 'https://rpc.localhost', 'https://rpc.local', 'https://[::1]', 'https://[fe80::1]']) await assert.rejects(transport.requestJson({ url }), error => error.code === 'invalid-url');
   const credentialUrl = ['https://', 'user', ':', 'synthetic', '@rpc.synthetic.invalid'].join('');
   await assert.rejects(transport.requestJson({ url: credentialUrl }), error => error.code === 'invalid-url');
   const pathCredential = `${'https://'}rpc.synthetic.invalid/${'v2'}/${'a'.repeat(32)}`;

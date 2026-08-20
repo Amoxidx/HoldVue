@@ -63,8 +63,8 @@ test('asset identities include chain and network and preserve unsupported assets
   assert.equal(unknown.coingeckoId, undefined); assert.match(unknown.assetId, /testnet/);
   const instrument = assetIdentityForInstrument({ schemaVersion: 4, id: 'i', providerId: 'fmp.market', providerSymbol: 'SYN@X', symbol: 'SYN', name: 'Synthetic', exchange: 'X', currency: 'EUR', type: 'stock' });
   assert.equal(instrument.assetId, 'instrument:i');
-  assert.match(assetIdentityForPosition(nativePosition({ chainId: null }), 'mainnet').assetId, /mainnet/);
-  assert.equal(assetIdentityForPosition(nativePosition({ family: 'evm', chainId: 1 }), 'mainnet').assetId.includes('mainnet'), true);
+  assert.match(assetIdentityForPosition(nativePosition({ chainId: null }), 'mainnet').assetId, /unknown/);
+  assert.equal(assetIdentityForPosition(nativePosition({ family: 'evm', chainId: 1 }), 'mainnet').assetId, 'asset:evm:1:native:native:1');
   assert.equal(assetIdentityForPosition(nativePosition({ family: 'bitcoin', chainId: null, assetId: 'native:btc', symbol: 'BTC' })).coingeckoId, 'bitcoin');
   assert.equal(assetIdentityForPosition(nativePosition({ family: 'solana', chainId: null, assetId: 'native:sol', symbol: 'SOL' })).coingeckoId, 'solana');
   assert.equal(assetIdentityForPosition(nativePosition({ family: 'solana', chainId: null, assetKind: 'fungible', assetId: `mint-${'x'.repeat(24)}` })).platform, 'solana');
@@ -381,8 +381,14 @@ test('pricing coordinator handles network fallbacks, duplicate quantities, skipp
   const failing = { id: COINGECKO_PROVIDER_ID, async fetch() { throw new TransportError('timeout', 'timeout'); } };
   const failed = await createPricingCoordinator({ providers: [failing], now: () => 5 }).run(state, { http: fakeHttp(() => ({})) });
   assert.equal(failed.results.length, 1);
-  const noMatch = await createPricingCoordinator({ providers: [skipped], now: () => 5 }).run({ ...state, positions: [], instruments: [], holdings: [] }, { http: fakeHttp(() => ({})) });
-  assert.equal(noMatch.results.length, 0);
+  const stalePosition = nativePosition(); const staleAssetId = assetIdentityForPosition(stalePosition).assetId; const staleBase = createEmptyPortfolioState();
+  const staleState = { ...staleBase, wallets: [{ schemaVersion: 3, id: 'w', label: 'Synthetic', family: 'evm', address: 'synthetic', enabled: true, createdAt: 1, options: { autoScanCommonChains: true, chainIds: [] } }], positions: [stalePosition], prices: { ...staleBase.prices, quotes: [quote(staleAssetId)], statuses: [{ assetId: staleAssetId, providerId: COINGECKO_PROVIDER_ID, status: 'ok', errorCode: null, lastGoodFetchedAt: 1 }] } };
+  const stale = await createPricingCoordinator({ providers: [failing], now: () => 6 }).run(staleState, { http: fakeHttp(() => ({})) });
+  assert.equal(stale.valuation.valuedAssets, 1); assert.equal(stale.state.prices.totalEurScaled, '1000000000000'); assert.equal(stale.state.prices.statuses[0].status, 'stale');
+  const orphanQuote = quote('orphan'); const orphanValuation = valueAssets([{ assetId: 'orphan', quantityBaseUnits: '1', quantityDecimals: 0, quote: orphanQuote }]);
+  const noMatch = await createPricingCoordinator({ providers: [skipped], now: () => 5 }).run({ ...state, positions: [], instruments: [], holdings: [], prices: { ...state.prices, quotes: [orphanQuote], statuses: [{ assetId: 'orphan', providerId: COINGECKO_PROVIDER_ID, status: 'ok', errorCode: null, lastGoodFetchedAt: 1 }], valuations: orphanValuation.assets, totalEurScaled: orphanValuation.totalEurScaled, totalUsdScaled: orphanValuation.totalUsdScaled, complete: true, valuedAssets: 1, totalAssets: 1, dayChangeEurScaled: '1', dayChangeUsdScaled: '1', dayChangePercentScaled: '1' } }, { http: fakeHttp(() => ({})) });
+  assert.equal(noMatch.results.length, 0); assert.equal(noMatch.state.prices.quotes.length, 0); assert.equal(noMatch.state.prices.totalEurScaled, null); assert.equal(noMatch.state.prices.totalUsdScaled, null); assert.equal(noMatch.state.prices.valuedAssets, 0); assert.equal(noMatch.state.prices.totalAssets, 0);
+  assert.equal(noMatch.state.prices.dayChangeEurScaled, null); assert.equal(noMatch.state.prices.dayChangeUsdScaled, null); assert.equal(noMatch.state.prices.dayChangePercentScaled, null);
 });
 
 test('pricing coordinator honors explicit keyless-provider switches and falls back after missing Yahoo quotes', async () => {
@@ -394,6 +400,7 @@ test('pricing coordinator honors explicit keyless-provider switches and falls ba
   const fallback = { id: 'fmp.market', async fetch(assets, context) { fallbackCalls++; return { providerId: 'fmp.market', quotes: assets.map(asset => quote(asset.assetId)), statuses: assets.map(asset => ({ assetId: asset.assetId, providerId: 'fmp.market', status: 'ok', errorCode: null, lastGoodFetchedAt: context.now })), partial: false }; } };
   const run = await createPricingCoordinator({ providers: [missingYahoo, fallback], now: () => 20 }).run(state, { http: fakeHttp(() => ({})) });
   assert.equal(yahooCalls, 1); assert.equal(fallbackCalls, 1); assert.equal(run.valuation.valuedAssets, 1); assert.equal(run.state.prices.statuses[0].providerId, 'fmp.market');
+  assert.equal(run.state.prices.history.find(series => series.id === 'portfolio')?.points.length, 1);
 
   const disabled = { ...state, settings: { ...state.settings, providerRefs: [{ providerId: YAHOO_QUOTES_PROVIDER_ID, keyId: null, enabled: false }, { providerId: COINGECKO_PROVIDER_ID, keyId: null, enabled: false }] } };
   yahooCalls = 0; fallbackCalls = 0;
@@ -403,7 +410,7 @@ test('pricing coordinator honors explicit keyless-provider switches and falls ba
   const crypto = { id: COINGECKO_PROVIDER_ID, async fetch() { cryptoCalls++; throw new Error('disabled provider was called'); } };
   const cryptoState = { ...disabled, positions: [nativePosition()] };
   const cryptoRun = await createPricingCoordinator({ providers: [crypto], now: () => 22 }).run(cryptoState, { http: fakeHttp(() => ({})) });
-  assert.equal(cryptoCalls, 0); assert.equal(cryptoRun.results.length, 0);
+  assert.equal(cryptoCalls, 0); assert.equal(cryptoRun.results.length, 1); assert.equal(cryptoRun.results[0].statuses[0].errorCode, 'provider-disabled');
 });
 
 test('pricing totals and portfolio history exclude hidden or quarantined assets while retaining their prices', async () => {

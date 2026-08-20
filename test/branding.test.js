@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { inflateSync } from 'node:zlib';
 import test from 'node:test';
+import { computeIconSourceHash } from '../scripts/icon-source.mjs';
 
 const branding = new URL('../assets/branding/', import.meta.url);
 const sizes = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256, 512, 1024];
@@ -33,7 +33,7 @@ function decodeRgbaPng(buffer) {
 test('branding outputs are current, adaptive, transparent and package-ready', async () => {
   const fullSource = await readFile(new URL('holdvue-icon.svg', branding)); const smallSource = await readFile(new URL('holdvue-icon-small.svg', branding));
   assert.match(fullSource.toString(), /viewBox="0 0 1024 1024"/); assert.match(smallSource.toString(), /viewBox="0 0 1024 1024"/);
-  const expectedHash = createHash('sha256').update(fullSource).update(smallSource).digest('hex');
+  const expectedHash = computeIconSourceHash(fullSource, smallSource);
   const manifest = JSON.parse(await readFile(new URL('icon-build.json', branding), 'utf8'));
   assert.equal(manifest.sourceHash, expectedHash); assert.deepEqual(manifest.pngSizes, sizes);
   for (const size of sizes) {
@@ -47,4 +47,13 @@ test('branding outputs are current, adaptive, transparent and package-ready', as
   const ico = await readFile(new URL('holdvue.ico', branding)); assert.equal(ico.readUInt16LE(4), 10);
   const icoSizes = Array.from({ length: 10 }, (_, index) => ico[6 + index * 16] || 256); assert.deepEqual(icoSizes, sizes.filter(size => size <= 256));
   const icns = await readFile(new URL('holdvue.icns', branding)); assert.equal(icns.subarray(0, 4).toString('ascii'), 'icns');
+});
+
+test('branding source hashes are stable across LF and CRLF checkouts', () => {
+  const full = '<svg>\n<path />\n</svg>\n';
+  const small = '<svg>\n<circle />\n</svg>\n';
+  assert.equal(
+    computeIconSourceHash(full, small),
+    computeIconSourceHash(full.replaceAll('\n', '\r\n'), small.replaceAll('\n', '\r\n')),
+  );
 });

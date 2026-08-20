@@ -123,7 +123,8 @@ export function assetIdentityForPosition(position: Position, network?: string): 
   if (position.assetKind === 'native') {
     const key = position.family === 'evm' ? `evm:${position.chainId ?? ''}` : `${position.family}:${network ?? (position.family === 'solana' ? 'mainnet-beta' : 'mainnet')}`;
     const id = nativeCoinIds[key];
-    const canonical = `asset:${position.family}:${network ?? (position.chainId === null ? 'mainnet' : String(position.chainId))}:native:${position.assetId}`;
+    const canonicalNetwork = position.family === 'evm' ? String(position.chainId ?? 'unknown') : network ?? (position.family === 'solana' ? 'mainnet-beta' : 'mainnet');
+    const canonical = `asset:${position.family}:${canonicalNetwork}:native:${position.assetId}`;
     return id ? { assetId: canonical, kind: 'native', family: position.family, symbol: position.symbol, coingeckoId: id } : { assetId: canonical, kind: 'native', family: position.family, symbol: position.symbol };
   }
   if (position.family === 'evm' && position.chainId !== null && /^0x[0-9a-fA-F]{40}$/.test(position.assetId)) {
@@ -390,7 +391,7 @@ export function mergePriceState(previous: PriceState, result: PriceProviderResul
   }
   const keep = activeAssetIds ?? new Set([...good.keys(), ...statusMap.keys()]);
   const histories = valuation ? updateHistory(previous.history.filter(series => series.id === 'portfolio' || keep.has(series.id)), result.quotes, valuation, now) : previous.history.filter(series => series.id === 'portfolio' || keep.has(series.id));
-  return { quotes: [...good.values()].filter(item => keep.has(item.assetId)), statuses: [...statusMap.values()].filter(item => keep.has(item.assetId)), valuations: valuation?.assets ?? previous.valuations.filter(item => keep.has(item.assetId)), history: histories, totalEurScaled: valuation?.totalEurScaled ?? previous.totalEurScaled, totalUsdScaled: valuation?.totalUsdScaled ?? previous.totalUsdScaled, complete: valuation?.complete ?? previous.complete, valuedAssets: valuation?.valuedAssets ?? previous.valuedAssets, totalAssets: valuation?.totalAssets ?? previous.totalAssets, dayChangeEurScaled: valuation?.dayChangeEurScaled ?? previous.dayChangeEurScaled, dayChangeUsdScaled: valuation?.dayChangeUsdScaled ?? previous.dayChangeUsdScaled, dayChangePercentScaled: valuation?.dayChangePercentScaled ?? previous.dayChangePercentScaled };
+  return { quotes: [...good.values()].filter(item => keep.has(item.assetId)), statuses: [...statusMap.values()].filter(item => keep.has(item.assetId)), valuations: valuation?.assets ?? previous.valuations.filter(item => keep.has(item.assetId)), history: histories, totalEurScaled: valuation ? valuation.totalEurScaled : previous.totalEurScaled, totalUsdScaled: valuation ? valuation.totalUsdScaled : previous.totalUsdScaled, complete: valuation?.complete ?? previous.complete, valuedAssets: valuation?.valuedAssets ?? previous.valuedAssets, totalAssets: valuation?.totalAssets ?? previous.totalAssets, dayChangeEurScaled: valuation ? valuation.dayChangeEurScaled : previous.dayChangeEurScaled, dayChangeUsdScaled: valuation ? valuation.dayChangeUsdScaled : previous.dayChangeUsdScaled, dayChangePercentScaled: valuation ? valuation.dayChangePercentScaled : previous.dayChangePercentScaled };
 }
 
 export interface PricingCoordinatorContext { readonly http: HttpJsonPort; readonly signal?: AbortSignal; }
@@ -435,16 +436,26 @@ export function createPricingCoordinator(dependencies: PricingCoordinatorDepende
           const resolvedAssets = new Set<string>();
           for (const provider of dependencies.providers) {
             const explicitlyDisabled = (provider.id === COINGECKO_PROVIDER_ID || provider.id === YAHOO_QUOTES_PROVIDER_ID) && state.settings.providerRefs.some(reference => reference.providerId === provider.id && reference.enabled === false);
-            if (explicitlyDisabled) continue;
             const selected = uniqueAssets.filter(asset => provider.id === COINGECKO_PROVIDER_ID ? asset.kind !== 'instrument' : asset.kind === 'instrument' && !resolvedAssets.has(asset.assetId));
             if (selected.length === 0) continue;
+            if (explicitlyDisabled) {
+              providerResults.push({ providerId: provider.id, quotes: [], statuses: selected.map(asset => statusFor(asset.assetId, provider.id, 'unpriced', 'provider-disabled', null)), partial: true });
+              continue;
+            }
             try { const result = await provider.fetch(selected, { http: context.http, signal: taskController.signal, now: dependencies.now() }); providerResults.push(result); for (const item of result.quotes) resolvedAssets.add(item.assetId); } catch (error) { const mapped = mapError(error); providerResults.push({ providerId: provider.id, quotes: [], statuses: selected.map(asset => statusFor(asset.assetId, provider.id, mapped.status, mapped.code, null)), partial: true }); }
           }
           const allQuotes = providerResults.flatMap(result => result.quotes); const quoteMap = new Map(allQuotes.map(item => [item.assetId, item]));
+          for (const item of current.quotes) if (!quoteMap.has(item.assetId)) quoteMap.set(item.assetId, item);
           const included = includedAssetIds(state, uniqueAssets, spamAssetIds);
           const valuation = valueAssets(quantityInputs(state, uniqueAssets).map(input => ({ ...input, quote: quoteMap.get(input.assetId) })), included);
           const active = new Set(uniqueAssets.map(asset => asset.assetId));
-          const merged = providerResults.reduce((previous, result) => mergePriceState(previous, result, valuation, dependencies.now(), active), current);
+          const mergedResult: PriceProviderResult = {
+            providerId: 'holdvue.pricing',
+            quotes: allQuotes,
+            statuses: providerResults.flatMap(result => result.statuses),
+            partial: providerResults.some(result => result.partial),
+          };
+          const merged = mergePriceState(current, mergedResult, valuation, dependencies.now(), active);
           const next = { ...state, prices: merged };
           return { state: next, valuation, results: providerResults };
         } finally {

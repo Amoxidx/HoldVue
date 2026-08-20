@@ -1,3 +1,5 @@
+import { isLocalHost, isPrivateHost } from './network-safety.ts';
+
 export interface ChainCapabilities {
   readonly nativeBalance: boolean;
   readonly erc20Enumeration: 'unsupported' | 'configured';
@@ -52,12 +54,6 @@ export const COMMON_EVM_CHAINS: readonly EvmChain[] = Object.freeze([
   chain(42220, 'Celo', 'CELO', 'https://celoscan.io', 18),
   chain(5000, 'Mantle', 'MNT', 'https://mantlescan.xyz', 18)
 ]);
-
-function isLocalHost(hostname: string): boolean { return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'; }
-function isPrivateHost(hostname: string): boolean {
-  const host = hostname.toLowerCase();
-  return /^(?:localhost$|127\.|10\.|192\.168\.|169\.254\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(host) || host.endsWith('.localhost') || host.endsWith('.local') || /^(?:\[?::1\]?|fc|fd|fe80:)/.test(host);
-}
 
 function credentialPath(parsed: URL): boolean {
   const segments = parsed.pathname.split('/').filter(Boolean);

@@ -7,6 +7,7 @@ test('renderer number formatting is exact, localized and safe at every display b
   assert.equal(formatRendererMoney('1234560000000', 'EUR', 'de'), '1,23 EUR');
   assert.equal(formatRendererMoney('1235000000000', 'USD', 'en'), '1.24 USD');
   assert.equal(formatRendererMoney('-1235000000000', 'EUR', 'de'), '−1,24 EUR');
+  assert.equal(formatRendererMoney('-1', 'EUR', 'de'), '0,00 EUR');
   assert.equal(formatRendererMoney('invalid', 'EUR', 'de'), '—');
 
   assert.equal(formatRendererUnitPrice(null, 'EUR', 'de'), '—');
@@ -20,6 +21,8 @@ test('renderer number formatting is exact, localized and safe at every display b
   assert.equal(formatRendererPercent(null, 'de'), '—');
   assert.equal(formatRendererPercent('4095', 'de'), '0,41%');
   assert.equal(formatRendererPercent('-4095', 'en'), '−0.41%');
+  assert.equal(formatRendererPercent('-1', 'en'), '0.00%');
+  assert.equal(formatRendererPercent('invalid', 'en'), '—');
 });
 
 test('renderer status tones distinguish progress, warnings, neutral states and failures', () => {

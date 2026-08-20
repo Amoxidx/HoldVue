@@ -1,3 +1,5 @@
+import { isLocalHost, isPrivateHost } from './network-safety.ts';
+
 export interface HttpRequest {
   readonly url: string;
   readonly method?: 'GET' | 'POST';
@@ -41,12 +43,6 @@ export class TransportError extends Error {
   public constructor(code: TransportErrorCode, message: string, status: number | null = null) {
     super(message); this.name = 'TransportError'; this.code = code; this.status = status;
   }
-}
-
-function isLocalHost(hostname: string): boolean { return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'; }
-function isPrivateHost(hostname: string): boolean {
-  const host = hostname.toLowerCase();
-  return /^(?:localhost$|127\.|10\.|192\.168\.|169\.254\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(host) || host.endsWith('.localhost') || host.endsWith('.local') || /^(?:\[?::1\]?|fc|fd|fe80:)/.test(host);
 }
 
 function credentialPath(url: URL): boolean {

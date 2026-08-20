@@ -1,7 +1,7 @@
 import type { HttpJsonPort, HttpRequest } from './transport.ts';
 import { TransportError } from './transport.ts';
 import { validateBitcoinAddress } from './addresses.ts';
-import type { CardanoWalletSource, EvmWalletSource, Position, SolanaWalletSource, WalletSource, BitcoinWalletSource, Settings } from './state.ts';
+import type { EvmWalletSource, Position, WalletSource, Settings } from './state.ts';
 import type { EvmChain } from './chains.ts';
 import { formatUnits, scanEvmNativeBalances, type JsonRpcPort, type ScanCoordinator } from './scanner.ts';
 import type { SecretStore } from './secrets.ts';
@@ -375,10 +375,8 @@ async function scanEtherscanNative(wallet: EvmWalletSource, options: NonNullable
   let failure: { status: AdapterStatus; code: string } | null = null;
   let successfulChain = false;
   let recoverableFailure = false;
-  let stopAfterFailure = false;
   try {
     for (const chain of selected) {
-      let chainFailed = false;
       const url = new URL(options.endpoint!);
       url.searchParams.set('chainid', String(chain.chainId)); url.searchParams.set('module', 'account'); url.searchParams.set('action', 'balance'); url.searchParams.set('address', wallet.address); url.searchParams.set('tag', 'latest');
       const response = await etherscanRequest(context.http!, limiter, { url: url.toString(), method: 'GET', secretQuery: { apikey: configured.key } }, context.signal);
@@ -387,8 +385,6 @@ async function scanEtherscanNative(wallet: EvmWalletSource, options: NonNullable
         failure ??= { status: parsedEnvelope.status, code: parsedEnvelope.code };
         const canContinue = canContinueEtherscanChain(parsedEnvelope);
         recoverableFailure ||= canContinue;
-        stopAfterFailure ||= !canContinue;
-        chainFailed = true;
         if (canContinue) continue;
         break;
       }

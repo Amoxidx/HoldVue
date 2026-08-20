@@ -3,6 +3,7 @@ import test from 'node:test';
 import { createEmptyPortfolioState } from '../src/shared/state.ts';
 import { classifyFungibleToken, evaluateSpamRules, shouldShowPosition } from '../src/shared/spam.ts';
 import { createSafeStorageSecretStore } from '../src/shared/secrets.ts';
+import { isLocalHost, isPrivateHost } from '../src/shared/network-safety.ts';
 
 function flaggedPosition() {
   return { schemaVersion: 2, id: 'position-synthetic', walletId: 'wallet-synthetic', family: 'evm', chainId: 1, assetKind: 'fungible', assetId: 'synthetic', symbol: 'SYN', quantity: '1', decimals: 18, updatedAt: 1, spam: { riskFlags: ['suspicious-name'], reasons: ['synthetic'], hiddenByDefault: true } };
@@ -80,4 +81,10 @@ test('safeStorage secret adapter fails closed and never stores plaintext', () =>
   const changing = createSafeStorageSecretStore({ ...fixture.safe, isEncryptionAvailable: () => available }, fixture.backing);
   available = false;
   assert.equal(changing.set('ref', 'synthetic').code, 'unavailable');
+});
+
+test('network host classification blocks private, reserved and mapped address ranges', () => {
+  assert.equal(isLocalHost('localhost'), true); assert.equal(isLocalHost('127.0.0.1'), true); assert.equal(isLocalHost('[::1]'), true); assert.equal(isLocalHost('example.com'), false);
+  for (const host of ['localhost', 'rpc.localhost', 'rpc.local', '0.0.0.0', '10.1.2.3', '100.64.0.1', '100.127.255.254', '127.2.3.4', '169.254.1.1', '172.16.0.1', '172.31.255.254', '192.0.0.1', '192.0.2.1', '192.168.1.1', '198.18.0.1', '198.19.255.254', '198.51.100.1', '203.0.113.1', '224.0.0.1', '255.255.255.255', '[::]', '[::1]', '[fc00::1]', '[fd00::1]', '[fe80::1]', '[febf::1]', '[ff02::1]', '[2001:db8::1]', '[::ffff:127.0.0.1]']) assert.equal(isPrivateHost(host), true, host);
+  for (const host of ['example.com', '8.8.8.8', '100.63.255.255', '100.128.0.1', '172.15.255.255', '172.32.0.1', '[2001:4860:4860::8888]', '[::ffff:8.8.8.8]']) assert.equal(isPrivateHost(host), false, host);
 });

@@ -35,7 +35,7 @@ test('custom chain validation is fail-closed for ids, URLs and credentials', () 
   assert.equal(validateCustomChain(input({ rpcUrl: 'http://localhost:8545' }), [], true).ok, true);
   assert.equal(validateCustomChain(input({ rpcUrl: 'http://127.0.0.1:8545' }), [], true).ok, true);
   assert.equal(validateCustomChain(input({ rpcUrl: 'http://[::1]:8545' }), [], true).ok, true);
-  for (const host of ['https://192.168.1.10', 'https://rpc.localhost', 'https://rpc.local', 'https://[::1]']) assert.equal(validateCustomChain(input({ rpcUrl: host })).ok, false);
+  for (const host of ['https://192.168.1.10', 'https://100.64.0.1', 'https://198.18.0.1', 'https://rpc.localhost', 'https://rpc.local', 'https://[::1]', 'https://[fe80::1]']) assert.equal(validateCustomChain(input({ rpcUrl: host })).ok, false);
   assert.equal(validateCustomChain(input({ rpcUrl: 'http://remote.invalid' }), [], true).ok, false);
   const credentialUrl = ['https://', 'user', ':', 'synthetic', '@rpc.synthetic.invalid'].join('');
   assert.equal(validateCustomChain(input({ rpcUrl: credentialUrl })).ok, false);

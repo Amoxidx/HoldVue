@@ -1,9 +1,9 @@
 import type { AddressDetection, AddressMatch } from '../shared/addresses.ts';
-import type { Holding, Instrument, PortfolioState, Settings, WalletFamily, WalletSource } from '../shared/state.ts';
+import type { PortfolioState, Settings, WalletFamily, WalletSource } from '../shared/state.ts';
 import { scaledToDecimal } from '../shared/pricing.ts';
 import type { InstrumentCandidate } from '../shared/market.ts';
 import type { HoldVueApi } from '../preload-api.d.ts';
-import { buildPortfolioViewModel, formatPortfolioValue, rangeWindow, selectHistoryPoints, sortPortfolioAssets, type PortfolioAssetView, type PortfolioRange, type PortfolioSort } from '../shared/portfolio.ts';
+import { buildPortfolioViewModel, selectHistoryPoints, sortPortfolioAssets, type PortfolioAssetView, type PortfolioRange, type PortfolioSort } from '../shared/portfolio.ts';
 import { bindChart } from './chart.ts';
 
 export interface RendererElement {
@@ -121,7 +121,7 @@ export function formatRendererMoney(scaled: string | null, currency: 'EUR' | 'US
     const parts = unsigned.split('.'); const whole = parts[0]!; const fraction = parts.slice(1).join('');
     let cents = BigInt(`${whole}${fraction.slice(0, 2).padEnd(2, '0')}`); if (fraction.slice(2, 3) >= '5') cents += 1n;
     const major = cents / 100n; const minor = (cents % 100n).toString().padStart(2, '0'); const separator = activeLocale === 'de' ? ',' : '.'; const grouped = new Intl.NumberFormat(activeLocale, { useGrouping: true }).format(major);
-    return `${negative ? '−' : ''}${grouped}${separator}${minor} ${currency}`;
+    return `${negative && cents !== 0n ? '−' : ''}${grouped}${separator}${minor} ${currency}`;
   } catch { return '—'; }
 }
 
@@ -139,9 +139,11 @@ export function formatRendererUnitPrice(scaled: string | null, currency: 'EUR' |
 
 export function formatRendererPercent(scaled: string | null, activeLocale: LocaleCode): string {
   if (scaled === null) return '—';
-  const raw = BigInt(scaled); const negative = raw < 0n; const magnitude = negative ? -raw : raw; const hundredths = (magnitude + 50n) / 100n;
-  const major = hundredths / 100n; const minor = (hundredths % 100n).toString().padStart(2, '0');
-  return `${negative ? '−' : ''}${major}${activeLocale === 'de' ? ',' : '.'}${minor}%`;
+  try {
+    const raw = BigInt(scaled); const negative = raw < 0n; const magnitude = negative ? -raw : raw; const hundredths = (magnitude + 50n) / 100n;
+    const major = hundredths / 100n; const minor = (hundredths % 100n).toString().padStart(2, '0');
+    return `${negative && hundredths !== 0n ? '−' : ''}${major}${activeLocale === 'de' ? ',' : '.'}${minor}%`;
+  } catch { return '—'; }
 }
 
 export function statusToneForMessage(key: string): 'ready' | 'neutral' | 'warning' | 'busy' | 'error' {

@@ -68,7 +68,7 @@ function localizedChartValue(value: string, locale: string): string {
   const grouped = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(BigInt(whole));
   return `${negative ? '−' : ''}${grouped}${shownFraction ? `${locale === 'de' ? ',' : '.'}${shownFraction}` : ''}`;
 }
-function yLabels(values: readonly string[], currency: Currency, locale: string): readonly string[] {
+function yLabels(values: readonly string[], locale: string): readonly string[] {
   if (values.length === 0) return [];
   const numeric = values.map(value => BigInt(value));
   const min = numeric.reduce((a, b) => a < b ? a : b);
@@ -88,7 +88,7 @@ export function buildChartGeometry(config: ChartConfig): ChartGeometry {
 }
 
 export function chartMarkup(config: ChartConfig, locale = 'de'): string {
-  const geometry = buildChartGeometry(config); const values = chartValues(config.points, config.currency); const labels = xLabels(config.points, locale, config.range); const ys = yLabels(values, config.currency, locale);
+  const geometry = buildChartGeometry(config); const values = chartValues(config.points, config.currency); const labels = xLabels(config.points, locale, config.range); const ys = yLabels(values, locale);
   if (config.points.length === 0) return `<div class="chart-empty" data-chart-empty><svg class="icon chart-empty-icon" aria-hidden="true" focusable="false"><use href="#icon-chart"></use></svg><span>${escape(config.summary)}</span></div>`;
   const polyline = geometry.points.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
   const circles = geometry.points.map((point, index) => `<circle class="chart-point" cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${config.points.length === 1 ? '4' : '2.5'}" data-chart-index="${index}" aria-hidden="true"></circle>`).join('');

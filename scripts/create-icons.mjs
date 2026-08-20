@@ -1,9 +1,9 @@
-import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { computeIconSourceHash } from './icon-source.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const branding = join(root, 'assets', 'branding');
@@ -18,7 +18,7 @@ const icoSizes = pngSizes.filter(size => size <= 256);
 const outputPaths = [master, icns, ico, ...pngSizes.map(size => join(branding, `holdvue-${size}.png`))];
 
 if (!existsSync(fullSource) || !existsSync(smallSource)) throw new Error('HoldVue SVG branding sources are missing.');
-const sourceHash = createHash('sha256').update(readFileSync(fullSource)).update(readFileSync(smallSource)).digest('hex');
+const sourceHash = computeIconSourceHash(readFileSync(fullSource), readFileSync(smallSource));
 let currentHash = '';
 try { currentHash = JSON.parse(readFileSync(manifest, 'utf8')).sourceHash ?? ''; } catch { currentHash = ''; }
 if (process.env.HOLDVUE_REBUILD_ICONS !== '1' && currentHash === sourceHash && outputPaths.every(existsSync)) {
