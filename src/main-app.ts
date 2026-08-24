@@ -165,10 +165,12 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
   const enableOnboardingProvider = (state: PortfolioState, family: WalletFamily): PortfolioState => updateSettings(state, { enabledProviderIds: [...new Set([...state.settings.enabledProviderIds, providerForFamily[family]])] });
   const mutateWallet = (task: (state: PortfolioState) => WalletResult<PortfolioState> | PublicFailure): Promise<PublicResult<PortfolioState>> => enqueueMutation(async () => {
     try {
-      const result = task(await loadState());
+      const current = await loadState();
+      const result = task(current);
       if (!result.ok) return publicWalletResult(result);
-      await options.storage.save(result.value);
-      return result;
+      const next = { ...result.value, instruments: current.instruments, holdings: current.holdings };
+      await options.storage.save(next);
+      return { ok: true, value: next };
     } catch {
       return failure('storage-failed', 'Local state could not be updated.');
     }

@@ -264,11 +264,16 @@ test('adding a wallet explicitly enables its family provider for tracking', asyn
   ];
   for (const [index, item] of cases.entries()) {
     const f = runtimeFixture();
+    const instrument = { schemaVersion: 4, id: `manual-instrument-${index}`, providerId: 'holdvue.catalog', providerSymbol: 'EUNL.DE', symbol: 'EUNL', name: 'Synthetic MSCI World ETF', exchange: 'XETRA', currency: 'EUR', type: 'etf' };
+    const holding = { schemaVersion: 4, id: `manual-holding-${index}`, instrumentId: instrument.id, quantityHundredths: '9900', quantity: '99', updatedAt: 1 };
+    f.storage.state = { ...f.storage.state, schemaVersion: 5, instruments: [instrument], holdings: [holding] };
     const composition = createMainComposition({ app: f.app, BrowserWindow: f.FakeWindow, ipcMain: f.ipcMain, storage: f.storage, scheduler: f.scheduler, ids: { next: () => `onboarding-${index}` }, clock: { now: () => 1 }, paths: { preload: '/tmp/preload.js', renderer: '/tmp/index.html' }, platform: 'linux' });
     await composition.start();
     const added = await f.handlers.get('holdvue:add-wallet')({}, { label: `Synthetic ${item.family}`, family: item.family, address: item.address, options: item.options });
     assert.equal(added.ok, true);
     assert.deepEqual(added.value.settings.enabledProviderIds, [item.provider]);
+    assert.deepEqual(added.value.instruments, [instrument]);
+    assert.deepEqual(added.value.holdings, [holding]);
   }
 });
 

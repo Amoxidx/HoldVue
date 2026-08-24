@@ -331,12 +331,11 @@ h4 { margin: 0; font-size: .9rem; }
 .hidden-asset-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; color: var(--muted); font-size: .78rem; }
 
 .management-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 20px; }
-.management-card { display: flex; min-height: 100%; flex-direction: column; }
+.management-card { display: flex; min-height: 0; flex-direction: column; }
 .management-card .section-heading { flex-direction: column; }
-.management-card .section-actions { justify-content: flex-start; }
 .management-card .section-copy { min-height: 4em; }
 .wallet-list, .holding-list { display: grid; gap: 9px; margin-top: 22px; }
-.wallet-card, .holding-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; padding: 15px; border: 1px solid var(--line); border-radius: var(--radius-md); background: color-mix(in srgb, var(--panel-raised) 66%, transparent); transition: border-color .18s var(--ease-out), background-color .18s var(--ease-out); }
+.wallet-card, .holding-card { display: flex; align-items: stretch; flex-direction: column; gap: 14px; min-width: 0; padding: 15px; border: 1px solid var(--line); border-radius: var(--radius-md); background: color-mix(in srgb, var(--panel-raised) 66%, transparent); transition: border-color .18s var(--ease-out), background-color .18s var(--ease-out); }
 .wallet-card:hover, .holding-card:hover { border-color: var(--line-strong); background: color-mix(in srgb, var(--panel-hover) 74%, transparent); }
 .wallet-card-main, .holding-card > div:first-child { min-width: 0; }
 .wallet-meta, .wallet-address, .holding-meta, .holding-quantity { color: var(--muted); font-size: .73rem; }
@@ -347,9 +346,21 @@ h4 { margin: 0; font-size: .9rem; }
 .holding-price-status small { color: var(--muted); }
 .holding-price-action { min-height: 32px; padding: 5px 9px; font-size: .72rem; }
 .holding-quantity strong { margin-left: 4px; color: var(--text-strong); font-size: .9rem; }
-.wallet-actions, .holding-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.wallet-actions, .holding-actions { display: flex; width: 100%; flex: 0 0 auto; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .wallet-actions button, .holding-actions button { min-height: 34px; padding: 5px 9px; font-size: .72rem; }
 .wallet-empty, .holding-empty { margin: 0; padding: 25px 4px; color: var(--muted); font-size: .84rem; text-align: center; }
+.management-add-slot { display: flex; justify-content: flex-start; margin-top: 11px; }
+.management-add-button { min-height: 34px; padding: 5px 9px; border-color: transparent; background: transparent; color: var(--accent-bright); box-shadow: none; font-size: .75rem; }
+.management-add-slot[data-empty="true"] { justify-content: center; margin-top: 2px; padding-bottom: 5px; }
+.management-add-slot[data-empty="true"] .management-add-button { min-height: 44px; padding: 9px 17px; border-color: color-mix(in srgb, var(--accent) 82%, transparent); background: var(--accent); color: var(--accent-ink); box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 15%, transparent); font-size: .82rem; font-weight: 720; }
+.provider-note { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 11px; margin-top: 18px; padding-top: 15px; border-top: 1px solid color-mix(in srgb, var(--line) 76%, transparent); }
+.provider-note[hidden] { display: none; }
+.provider-note-mark { display: grid; width: 30px; height: 30px; border-radius: 9px; background: color-mix(in srgb, var(--accent) 9%, transparent); color: var(--accent-bright); place-items: center; }
+.provider-note-mark .icon { --icon-size: 17px; }
+.provider-note > div { min-width: 0; }
+.provider-note strong { display: block; color: var(--muted-strong); font-size: .73rem; line-height: 1.35; }
+.provider-note p { margin: 2px 0 0; color: var(--muted); font-size: .7rem; line-height: 1.45; }
+.provider-note-action { min-height: 32px; padding: 5px 9px; font-size: .7rem; }
 .empty-card { background: transparent; }
 .empty-icon { color: var(--accent); font-size: 30px; }
 .empty-card p { margin: 0; color: var(--muted); }
@@ -490,6 +501,8 @@ input::placeholder { color: color-mix(in srgb, var(--muted) 72%, transparent); }
   .section-heading, .wallet-card, .holding-card { align-items: stretch; flex-direction: column; }
   .section-actions, .wallet-actions, .holding-actions { justify-content: flex-start; }
   .section-actions .action-button { width: 100%; }
+  .provider-note { grid-template-columns: 30px minmax(0, 1fr); }
+  .provider-note-action { grid-column: 2; justify-self: start; }
   .portfolio-chart-shell { min-height: 280px; margin-inline: -4px; padding-inline: 10px; }
   .chart-header, .asset-detail-heading { align-items: stretch; flex-direction: column; }
   .chart-toolbar { width: 100%; }

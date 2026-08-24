@@ -67,16 +67,21 @@
       <section class="dashboard-card management-card" aria-labelledby="wallets-title">
         <div class="section-heading">
         <div><p class="eyebrow" data-i18n="wallet.eyebrow">WALLETS / WALLET-QUELLEN</p><h2 id="wallets-title" data-i18n="wallet.title">Wallets</h2><p class="section-copy" data-i18n="wallet.copy">Verwalte öffentliche Adressen und Extended Public Keys. Synchronisierung bleibt providerabhängig; keine NFTs.</p><p class="field-help" data-sync-summary aria-live="polite">Noch keine Provider konfiguriert</p></div>
-          <div class="section-actions"><button type="button" class="primary action-button" data-add-wallet><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-plus"/></svg><span data-i18n="wallet.add">Wallet hinzufügen</span></button></div>
         </div>
         <div class="wallet-list" data-wallet-list aria-live="polite"></div>
+        <div class="management-add-slot" data-wallet-add-slot data-empty="true"><button type="button" class="secondary action-button management-add-button" data-add-wallet><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-plus"/></svg><span data-i18n="wallet.add">Wallet hinzufügen</span></button></div>
+        <aside class="provider-note" data-etherscan-onboarding aria-labelledby="etherscan-note-title">
+          <span class="provider-note-mark" aria-hidden="true"><svg class="icon" focusable="false"><use href="#icon-settings"/></svg></span>
+          <div><strong id="etherscan-note-title" data-i18n="wallet.etherscanTitle">Optional: kostenloser Etherscan-Key</strong><p data-i18n="wallet.etherscanHelp">Verbessert bei EVM-Wallets die Erkennung nativer Bestände und fungibler Token. HoldVue funktioniert auch ohne Key.</p></div>
+          <button type="button" class="secondary compact-action provider-note-action" data-open-etherscan-settings data-i18n="wallet.etherscanAction">In Einstellungen</button>
+        </aside>
       </section>
       <section class="dashboard-card management-card" aria-labelledby="holdings-title">
         <div class="section-heading">
           <div><p class="eyebrow" data-i18n="holdings.eyebrow">MANUELLE BESTÄNDE</p><h2 id="holdings-title" data-i18n="holdings.title">Aktien und ETFs</h2><p class="section-copy" data-i18n="holdings.copy">Wähle ein Instrument aus der Provider-Suche und hinterlege nur die Stückzahl. Preise werden hier nicht erfunden.</p></div>
-          <div class="section-actions"><button type="button" class="primary action-button" data-add-holding><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-plus"/></svg><span data-i18n="holdings.add">Aktie/ETF hinzufügen</span></button></div>
         </div>
         <div class="holding-list" data-holding-list aria-live="polite"></div>
+        <div class="management-add-slot" data-holding-add-slot data-empty="true"><button type="button" class="secondary action-button management-add-button" data-add-holding><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-plus"/></svg><span data-i18n="holdings.add">Aktie/ETF hinzufügen</span></button></div>
       </section>
       </div>
       <span class="sr-only" data-position-count>0</span>

@@ -49,6 +49,9 @@ test('real index DOM wires every dialog control, locale, focus, full address and
   earlyRpc.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
   await controller.render();
   const documentRef = dom.window.document;
+  assert.equal(documentRef.querySelector('[data-wallet-add-slot]').dataset.empty, 'false');
+  assert.equal(documentRef.querySelector('[data-holding-add-slot]').dataset.empty, 'true');
+  assert.equal(documentRef.querySelector('[data-etherscan-onboarding]').hidden, false);
   assert.equal(documentRef.querySelector('[data-status]').getAttribute('data-state'), 'neutral');
   assert.equal(documentRef.querySelector('[data-settings-advanced]').open, false);
   assert.match(documentRef.querySelector('[data-settings-advanced] summary').textContent, /Erweiterte/);
@@ -97,6 +100,7 @@ test('real index DOM wires every dialog control, locale, focus, full address and
   documentRef.querySelector('[data-etherscan-key-save]').dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
   await flush();
   assert.equal(keyInput.value, '');
+  assert.equal(documentRef.querySelector('[data-etherscan-onboarding]').hidden, true);
   documentRef.querySelector('[data-etherscan-key-delete]').dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
   assert.equal(documentRef.querySelector('[data-key-delete-provider]').textContent, 'Etherscan');
   documentRef.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -105,6 +109,7 @@ test('real index DOM wires every dialog control, locale, focus, full address and
   documentRef.querySelector('[data-etherscan-key-delete]').click();
   documentRef.querySelector('[data-key-delete-confirm]').click();
   await flush();
+  assert.equal(documentRef.querySelector('[data-etherscan-onboarding]').hidden, false);
 
   const add = documentRef.querySelector('[data-add-wallet]');
   add.dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
@@ -332,6 +337,13 @@ test('real DOM supports offline instrument search, exact holdings CRUD, keyboard
   const disposeController = controller.start();
   await controller.render();
   const documentRef = dom.window.document;
+  assert.equal(documentRef.querySelector('[data-wallet-add-slot]').dataset.empty, 'true');
+  assert.equal(documentRef.querySelector('[data-holding-add-slot]').dataset.empty, 'true');
+  assert.equal(documentRef.querySelector('[data-etherscan-onboarding]').hidden, false);
+  documentRef.querySelector('[data-open-etherscan-settings]').click();
+  assert.equal(documentRef.querySelector('[data-settings-dialog]').hidden, false);
+  assert.equal(documentRef.activeElement, documentRef.querySelector('[data-etherscan-key]'));
+  documentRef.querySelector('[data-settings-close]').click();
   const add = documentRef.querySelector('[data-add-holding]');
   add.click();
   documentRef.querySelector('[data-holding-form]').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
@@ -373,6 +385,7 @@ test('real DOM supports offline instrument search, exact holdings CRUD, keyboard
   quantity.value = '1,23';
   documentRef.querySelector('[data-holding-form]').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
   await flush();
+  assert.equal(documentRef.querySelector('[data-holding-add-slot]').dataset.empty, 'false');
   assert.equal(state.holdings[0].quantity, '1.23');
   assert.equal(refreshCalls, 1);
   assert.equal(documentRef.activeElement, add);
