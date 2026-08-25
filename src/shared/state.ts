@@ -1,6 +1,7 @@
 import type { Currency, Locale } from './ports.ts';
 import { detectAddress, validateAddressForFamily, type AddressDetection, type AddressErrorCode } from './addresses.ts';
 import { DEFAULT_NATIVE_DECIMALS, validateCustomChain, validateEndpointUrl } from './chains.ts';
+import { canonicalEvmNativeAssetId, canonicalizePersistedAssetId } from './asset-identity.ts';
 
 export const CURRENT_SCHEMA_VERSION = 5 as const;
 export type Theme = 'light' | 'dark';
@@ -480,7 +481,7 @@ function parseSettings(value: unknown, version: 1 | 2 | 3 | 4 | 5): Settings {
     providerRefs: [...new Map(providerRefs.map(ref => [ref.providerId, ref])).values()],
     providerEndpoints: [...new Map(providerEndpoints.map(endpoint => [endpoint.providerId, endpoint])).values()],
     enabledProviderIds: [...new Set(enabledProviderIds)],
-    hiddenAssetIds: [...new Set(Array.isArray(input.hiddenAssetIds) ? input.hiddenAssetIds.filter((id): id is string => typeof id === 'string' && HIDDEN_ASSET_ID_PATTERN.test(id)) : [])]
+    hiddenAssetIds: [...new Set(Array.isArray(input.hiddenAssetIds) ? input.hiddenAssetIds.filter((id): id is string => typeof id === 'string' && HIDDEN_ASSET_ID_PATTERN.test(id)).map(canonicalizePersistedAssetId) : [])]
   };
 }
 
@@ -646,11 +647,43 @@ function parsePrices(value: unknown): PriceState {
   }).filter((item): item is HistorySeries => item !== null) : [];
   const totalEurScaled = value.totalEurScaled === null ? null : scaledInteger(value.totalEurScaled, true); const totalUsdScaled = value.totalUsdScaled === null ? null : scaledInteger(value.totalUsdScaled, true);
   const dayChangeEurScaled = value.dayChangeEurScaled === null ? null : signedScaledInteger(value.dayChangeEurScaled); const dayChangeUsdScaled = value.dayChangeUsdScaled === null ? null : signedScaledInteger(value.dayChangeUsdScaled); const dayChangePercentScaled = value.dayChangePercentScaled === null ? null : signedScaledInteger(value.dayChangePercentScaled);
+  const canonicalQuotes = new Map<string, PriceQuote>();
+  for (const quote of quotes) {
+    const candidate = { ...quote, assetId: canonicalizePersistedAssetId(quote.assetId) };
+    const prior = canonicalQuotes.get(candidate.assetId);
+    if (!prior || candidate.fetchedAt >= prior.fetchedAt) canonicalQuotes.set(candidate.assetId, candidate);
+  }
+  const canonicalStatuses = new Map(statuses.map(status => {
+    const candidate = { ...status, assetId: canonicalizePersistedAssetId(status.assetId) };
+    return [candidate.assetId, candidate] as const;
+  }));
+  const canonicalValuations = new Map<string, Valuation>();
+  for (const valuation of new Map(valuations.map(item => [item.assetId, item])).values()) {
+    const assetId = canonicalizePersistedAssetId(valuation.assetId);
+    const candidate = { ...valuation, assetId };
+    const prior = canonicalValuations.get(assetId);
+    if (!prior) { canonicalValuations.set(assetId, candidate); continue; }
+    const decimals = Math.max(prior.quantityDecimals, candidate.quantityDecimals);
+    const priorQuantity = BigInt(prior.quantityBaseUnits) * 10n ** BigInt(decimals - prior.quantityDecimals);
+    const candidateQuantity = BigInt(candidate.quantityBaseUnits) * 10n ** BigInt(decimals - candidate.quantityDecimals);
+    const nullableAdd = (left: string | null, right: string | null): string | null => left === null || right === null ? null : (BigInt(left) + BigInt(right)).toString();
+    const valueEurScaled = nullableAdd(prior.valueEurScaled, candidate.valueEurScaled);
+    const valueUsdScaled = nullableAdd(prior.valueUsdScaled, candidate.valueUsdScaled);
+    const status: Valuation['status'] = valueEurScaled !== null && valueUsdScaled !== null ? 'valued' : prior.status === 'unpriced' && candidate.status === 'unpriced' ? 'unpriced' : 'partial';
+    canonicalValuations.set(assetId, { assetId, quantityBaseUnits: (priorQuantity + candidateQuantity).toString(), quantityDecimals: decimals, priceEurScaled: candidate.priceEurScaled, priceUsdScaled: candidate.priceUsdScaled, valueEurScaled, valueUsdScaled, dayChangeEurScaled: nullableAdd(prior.dayChangeEurScaled, candidate.dayChangeEurScaled), dayChangeUsdScaled: nullableAdd(prior.dayChangeUsdScaled, candidate.dayChangeUsdScaled), dayChangePercentScaled: prior.dayChangePercentScaled === candidate.dayChangePercentScaled ? prior.dayChangePercentScaled : null, status });
+  }
+  const canonicalHistory = new Map<string, HistorySeries>();
+  for (const series of history) {
+    const id = series.id === 'portfolio' ? series.id : canonicalizePersistedAssetId(series.id);
+    const prior = canonicalHistory.get(id);
+    const points = prior ? [...prior.points, ...series.points] : [...series.points];
+    canonicalHistory.set(id, { id, kind: series.kind, points: [...new Map(points.sort((left, right) => left.timestamp - right.timestamp).map(point => [point.timestamp, point])).values()] });
+  }
   return {
-    quotes: [...new Map(quotes.map(item => [item.assetId, item])).values()],
-    statuses: [...new Map(statuses.map(item => [item.assetId, item])).values()],
-    valuations: [...new Map(valuations.map(item => [item.assetId, item])).values()],
-    history: [...new Map(history.map(item => [item.id, item])).values()],
+    quotes: [...canonicalQuotes.values()],
+    statuses: [...canonicalStatuses.values()],
+    valuations: [...canonicalValuations.values()],
+    history: [...canonicalHistory.values()],
     totalEurScaled, totalUsdScaled, complete: value.complete === true, valuedAssets: typeof value.valuedAssets === 'number' && Number.isSafeInteger(value.valuedAssets) && value.valuedAssets >= 0 ? value.valuedAssets : 0, totalAssets: typeof value.totalAssets === 'number' && Number.isSafeInteger(value.totalAssets) && value.totalAssets >= 0 ? value.totalAssets : 0, dayChangeEurScaled, dayChangeUsdScaled, dayChangePercentScaled
   };
 }
@@ -690,7 +723,7 @@ function prunePriceState(state: PortfolioState, removed: readonly string[]): Pri
 }
 function canonicalPositionAsset(wallet: WalletSource | undefined, position: Position): string {
   const network = wallet && 'network' in wallet.options ? wallet.options.network : 'mainnet';
-  if (position.family === 'evm') return `asset:evm:${position.chainId}:${position.assetKind}:${position.assetId.toLowerCase()}`;
+  if (position.family === 'evm') return position.assetKind === 'native' ? canonicalEvmNativeAssetId(position.chainId, position.assetId) : `asset:evm:${position.chainId}:${position.assetKind}:${position.assetId.toLowerCase()}`;
   return `asset:${position.family}:${network}:${position.assetKind}:${position.assetId}`;
 }
 function assetsNoLongerHeld(positions: readonly Position[], wallets: readonly WalletSource[], removedWalletId?: string): string[] {

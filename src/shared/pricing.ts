@@ -1,6 +1,7 @@
 import type { HttpJsonPort } from './transport.ts';
 import { TransportError } from './transport.ts';
 import type { Instrument, PortfolioState, Position, PriceQuote, PriceState, PriceStatus, Valuation, HistoryPoint, HistorySeries } from './state.ts';
+import { canonicalEvmNativeAssetId, knownEvmNativeCoinId } from './asset-identity.ts';
 
 // Keep this renderer-safe runtime module independent of state.ts.  state.ts
 // owns the persisted schema constant; this matching literal is intentionally
@@ -113,7 +114,6 @@ function quote(assetId: string, eur: string, usd: string, source: string, fetche
 
 const nativeCoinIds: Record<string, string> = {
   'bitcoin:mainnet': 'bitcoin', 'solana:mainnet-beta': 'solana', 'cardano:mainnet': 'cardano',
-  'evm:1': 'ethereum', 'evm:8453': 'ethereum', 'evm:42161': 'ethereum', 'evm:10': 'ethereum', 'evm:137': 'matic-network', 'evm:56': 'binancecoin', 'evm:43114': 'avalanche-2', 'evm:100': 'xdai', 'evm:59144': 'ethereum', 'evm:534352': 'ethereum', 'evm:324': 'ethereum', 'evm:42220': 'celo', 'evm:5000': 'mantle'
 };
 const platformIds: Record<string, string> = {
   '1': 'ethereum', '8453': 'base', '42161': 'arbitrum-one', '10': 'optimistic-ethereum', '137': 'polygon-pos', '56': 'binance-smart-chain', '43114': 'avalanche', '100': 'xdai', '59144': 'linea', '534352': 'scroll', '324': 'zksync', '42220': 'celo', '5000': 'mantle', solana: 'solana'
@@ -121,10 +121,10 @@ const platformIds: Record<string, string> = {
 
 export function assetIdentityForPosition(position: Position, network?: string): PriceAsset {
   if (position.assetKind === 'native') {
-    const key = position.family === 'evm' ? `evm:${position.chainId ?? ''}` : `${position.family}:${network ?? (position.family === 'solana' ? 'mainnet-beta' : 'mainnet')}`;
-    const id = nativeCoinIds[key];
+    const key = `${position.family}:${network ?? (position.family === 'solana' ? 'mainnet-beta' : 'mainnet')}`;
+    const id = position.family === 'evm' ? knownEvmNativeCoinId(position.chainId) : nativeCoinIds[key];
     const canonicalNetwork = position.family === 'evm' ? String(position.chainId ?? 'unknown') : network ?? (position.family === 'solana' ? 'mainnet-beta' : 'mainnet');
-    const canonical = `asset:${position.family}:${canonicalNetwork}:native:${position.assetId}`;
+    const canonical = position.family === 'evm' ? canonicalEvmNativeAssetId(position.chainId, position.assetId) : `asset:${position.family}:${canonicalNetwork}:native:${position.assetId}`;
     return id ? { assetId: canonical, kind: 'native', family: position.family, symbol: position.symbol, coingeckoId: id } : { assetId: canonical, kind: 'native', family: position.family, symbol: position.symbol };
   }
   if (position.family === 'evm' && position.chainId !== null && /^0x[0-9a-fA-F]{40}$/.test(position.assetId)) {

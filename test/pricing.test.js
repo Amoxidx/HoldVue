@@ -5,6 +5,7 @@ import {
   assetIdentityForInstrument, assetIdentityForPosition, createCoinGeckoPriceAdapter, createFmpQuoteAdapter, createPricingCoordinator, createYahooQuoteAdapter, providerQuoteSymbol, yahooQuoteSymbol,
   decimalToScaled, mergePriceState, scaledToDecimal, updateHistory, valueAssets
 } from '../src/shared/pricing.ts';
+import { canonicalEvmNativeAssetId, canonicalizePersistedAssetId, knownEvmNativeCoinId } from '../src/shared/asset-identity.ts';
 import { createEmptyPortfolioState, parsePortfolioState, PRICE_SCALE } from '../src/shared/state.ts';
 import { TransportError } from '../src/shared/transport.ts';
 
@@ -49,10 +50,10 @@ test('fixed-point decimals reject unsafe values and round ties deterministically
   assert.equal(scaledToDecimal('0'), '0');
 });
 
-test('asset identities include chain and network and preserve unsupported assets', () => {
+test('asset identities stack canonical native coins while preserving chain-specific tokens and unsupported assets', () => {
   const eth = assetIdentityForPosition(nativePosition());
   const base = assetIdentityForPosition(nativePosition({ chainId: 8453, assetId: 'native:8453' }));
-  assert.notEqual(eth.assetId, base.assetId); assert.equal(eth.coingeckoId, 'ethereum'); assert.equal(base.coingeckoId, 'ethereum');
+  assert.equal(eth.assetId, base.assetId); assert.equal(eth.assetId, 'asset:evm:native:ethereum'); assert.equal(eth.coingeckoId, 'ethereum'); assert.equal(base.coingeckoId, 'ethereum');
   const sol = assetIdentityForPosition(nativePosition({ family: 'solana', chainId: null, assetId: 'native:sol', symbol: 'SOL' }), 'devnet');
   assert.equal(sol.coingeckoId, undefined); assert.match(sol.assetId, /devnet/);
   const token = assetIdentityForPosition(nativePosition({ assetKind: 'fungible', assetId: contract, symbol: 'SYN' }));
@@ -64,12 +65,20 @@ test('asset identities include chain and network and preserve unsupported assets
   const instrument = assetIdentityForInstrument({ schemaVersion: 4, id: 'i', providerId: 'fmp.market', providerSymbol: 'SYN@X', symbol: 'SYN', name: 'Synthetic', exchange: 'X', currency: 'EUR', type: 'stock' });
   assert.equal(instrument.assetId, 'instrument:i');
   assert.match(assetIdentityForPosition(nativePosition({ chainId: null }), 'mainnet').assetId, /unknown/);
-  assert.equal(assetIdentityForPosition(nativePosition({ family: 'evm', chainId: 1 }), 'mainnet').assetId, 'asset:evm:1:native:native:1');
+  assert.equal(assetIdentityForPosition(nativePosition({ family: 'evm', chainId: 1 }), 'mainnet').assetId, 'asset:evm:native:ethereum');
   assert.equal(assetIdentityForPosition(nativePosition({ family: 'bitcoin', chainId: null, assetId: 'native:btc', symbol: 'BTC' })).coingeckoId, 'bitcoin');
   assert.equal(assetIdentityForPosition(nativePosition({ family: 'solana', chainId: null, assetId: 'native:sol', symbol: 'SOL' })).coingeckoId, 'solana');
   assert.equal(assetIdentityForPosition(nativePosition({ family: 'solana', chainId: null, assetKind: 'fungible', assetId: `mint-${'x'.repeat(24)}` })).platform, 'solana');
   assert.match(assetIdentityForPosition(nativePosition({ family: 'cardano', chainId: null, assetId: 'asset:unknown', symbol: 'SYN' })).assetId, /unknown/);
   assert.match(assetIdentityForPosition(nativePosition({ family: 'cardano', chainId: null, assetKind: 'fungible', assetId: 'asset:unknown', symbol: 'SYN' })).assetId, /unknown/);
+  assert.equal(knownEvmNativeCoinId(null), undefined);
+  assert.equal(knownEvmNativeCoinId(8453), 'ethereum');
+  assert.equal(canonicalEvmNativeAssetId(1, 'native:custom'), 'asset:evm:1:native:native:custom');
+  assert.equal(canonicalEvmNativeAssetId(null, 'native:custom'), 'asset:evm:unknown:native:native:custom');
+  assert.equal(canonicalizePersistedAssetId('asset:evm:8453:native:native:8453'), 'asset:evm:native:ethereum');
+  assert.equal(canonicalizePersistedAssetId('asset:evm:1:native:native:2'), 'asset:evm:1:native:native:2');
+  assert.equal(canonicalizePersistedAssetId('asset:evm:999999:native:native:999999'), 'asset:evm:999999:native:native:999999');
+  assert.equal(canonicalizePersistedAssetId('instrument:synthetic'), 'instrument:synthetic');
 });
 
 test('CoinGecko keyless adapter parses official fields, aliases native ids, groups token platforms and marks partials', async () => {

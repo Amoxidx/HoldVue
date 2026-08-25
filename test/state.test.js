@@ -332,6 +332,12 @@ test('price data is pruned when a wallet or manual holding disappears', () => {
   const walletTwo = { ...wallet, id: 'wallet-price-two', address: `0x${'2'.repeat(40)}` };
   const shared = deleteWallet({ ...walletState, wallets: [wallet, walletTwo], positions: [position, { ...position, id: 'position-price-two', walletId: walletTwo.id }] }, wallet.id);
   assert.equal(shared.ok, true); assert.equal(shared.value.prices.quotes.length, 1);
+  const tokenContract = `0x${'3'.repeat(40)}`;
+  const tokenPosition = { ...position, id: 'position-token-price', assetKind: 'fungible', assetId: tokenContract, symbol: 'TOK', spam: null };
+  const tokenAssetId = `asset:evm:1:fungible:${tokenContract}`;
+  const tokenState = { ...walletState, positions: [tokenPosition], prices: { ...walletState.prices, quotes: [{ ...walletState.prices.quotes[0], assetId: tokenAssetId }], history: [{ id: tokenAssetId, kind: 'asset-price', points: [] }] } };
+  const deletedTokenWallet = deleteWallet(tokenState, wallet.id);
+  assert.equal(deletedTokenWallet.ok, true); assert.equal(deletedTokenWallet.value.prices.quotes.length, 0);
   let generated = 0; const holdingState = addHolding(base, { instrument: { providerId: 'fmp.market', providerSymbol: 'SYN@X', symbol: 'SYN', name: 'Synthetic', exchange: 'X', currency: 'EUR', type: 'stock' }, quantity: '1' }, { ids: { next: () => `synthetic-id-${++generated}` }, clock: { now: () => 1 } });
   assert.equal(holdingState.ok, true);
   const withPrice = { ...holdingState.value, prices: { ...holdingState.value.prices, quotes: [{ assetId: `instrument:${holdingState.value.instruments[0].id}`, priceEurScaled: '1', priceUsdScaled: '1', scale: 12, change24hPercentScaled: null, change24hEurPercentScaled: null, change24hUsdPercentScaled: null, previousPriceEurScaled: null, previousPriceUsdScaled: null, source: 'synthetic', sourceTimestamp: null, fetchedAt: 1 }], statuses: [], valuations: [], history: [{ id: `instrument:${holdingState.value.instruments[0].id}`, kind: 'asset-price', points: [] }] } };
@@ -343,6 +349,33 @@ test('price data is pruned when a wallet or manual holding disappears', () => {
   const btcState = { ...base, wallets: [btcWallet], positions: [btcPosition], prices: { ...base.prices, quotes: [{ assetId: 'asset:bitcoin:mainnet:native:native:btc', priceEurScaled: '1', priceUsdScaled: '1', scale: 12, change24hPercentScaled: null, change24hEurPercentScaled: null, change24hUsdPercentScaled: null, previousPriceEurScaled: null, previousPriceUsdScaled: null, source: 'synthetic', sourceTimestamp: null, fetchedAt: 1 }], statuses: [], valuations: [], history: [{ id: 'asset:bitcoin:mainnet:native:native:btc', kind: 'asset-price', points: [] }] } };
   assert.equal(parsePortfolioState(btcState).prices.quotes.length, 1);
   assert.equal(deleteWallet(btcState, btcWallet.id).ok, true);
+});
+
+test('legacy native EVM price data migrates into one exact cross-wallet and cross-chain asset', () => {
+  const empty = createEmptyPortfolioState();
+  const legacyMainnet = 'asset:evm:1:native:native:1';
+  const legacyBase = 'asset:evm:8453:native:native:8453';
+  const canonical = 'asset:evm:native:ethereum';
+  const price = (assetId, fetchedAt, value = '1') => ({ assetId, priceEurScaled: value, priceUsdScaled: value, scale: 12, change24hPercentScaled: '1', change24hEurPercentScaled: '1', change24hUsdPercentScaled: '1', previousPriceEurScaled: value, previousPriceUsdScaled: value, source: 'synthetic', sourceTimestamp: null, fetchedAt });
+  const valued = (assetId, quantityBaseUnits, quantityDecimals, value, day, percent = '1') => ({ assetId, quantityBaseUnits, quantityDecimals, priceEurScaled: value, priceUsdScaled: value, valueEurScaled: value, valueUsdScaled: value, dayChangeEurScaled: day, dayChangeUsdScaled: day, dayChangePercentScaled: percent, status: 'valued' });
+  const parsed = parsePortfolioState({ ...empty, settings: { ...empty.settings, hiddenAssetIds: [legacyMainnet] }, prices: { ...empty.prices,
+    quotes: [price(legacyMainnet, 3, '3'), price(legacyBase, 2, '2')],
+    statuses: [{ assetId: legacyMainnet, providerId: 'coingecko.keyless', status: 'ok', errorCode: null, lastGoodFetchedAt: 3 }, { assetId: legacyBase, providerId: 'coingecko.keyless', status: 'stale', errorCode: 'rate-limited', lastGoodFetchedAt: 2 }],
+    valuations: [valued(legacyMainnet, '1', 18, '3', '1'), valued(legacyBase, '2', 17, '2', '1')],
+    history: [{ id: legacyMainnet, kind: 'asset-price', points: [{ timestamp: 1, valueEurScaled: '1', valueUsdScaled: '1', coverage: 'complete' }] }, { id: legacyBase, kind: 'asset-price', points: [{ timestamp: 1, valueEurScaled: '2', valueUsdScaled: '2', coverage: 'complete' }, { timestamp: 2, valueEurScaled: '2', valueUsdScaled: '2', coverage: 'complete' }] }, { id: 'portfolio', kind: 'portfolio-value', points: [] }]
+  } });
+  assert.deepEqual(parsed.settings.hiddenAssetIds, [canonical]);
+  assert.equal(parsed.prices.quotes.length, 1); assert.equal(parsed.prices.quotes[0].assetId, canonical); assert.equal(parsed.prices.quotes[0].fetchedAt, 3);
+  assert.equal(parsed.prices.statuses.length, 1); assert.equal(parsed.prices.statuses[0].status, 'stale');
+  assert.deepEqual(parsed.prices.valuations.map(item => [item.assetId, item.quantityBaseUnits, item.quantityDecimals, item.valueEurScaled, item.status]), [[canonical, '21', 18, '5', 'valued']]);
+  assert.deepEqual(parsed.prices.history.find(item => item.id === canonical).points.map(point => [point.timestamp, point.valueEurScaled]), [[1, '2'], [2, '2']]);
+  assert.equal(parsed.prices.history.some(item => item.id === 'portfolio'), true);
+
+  const unpriced = assetId => ({ assetId, quantityBaseUnits: '1', quantityDecimals: 18, priceEurScaled: null, priceUsdScaled: null, valueEurScaled: null, valueUsdScaled: null, dayChangeEurScaled: null, dayChangeUsdScaled: null, dayChangePercentScaled: null, status: 'unpriced' });
+  const bothUnpriced = parsePortfolioState({ ...empty, prices: { ...empty.prices, valuations: [unpriced(legacyMainnet), unpriced(legacyBase)] } });
+  assert.equal(bothUnpriced.prices.valuations[0].status, 'unpriced');
+  const partial = parsePortfolioState({ ...empty, prices: { ...empty.prices, valuations: [valued(legacyMainnet, '1', 18, '1', '1', '1'), unpriced(legacyBase)] } });
+  assert.equal(partial.prices.valuations[0].status, 'partial'); assert.equal(partial.prices.valuations[0].dayChangePercentScaled, null);
 });
 
 test('position display names are bounded and optional during migration', () => {

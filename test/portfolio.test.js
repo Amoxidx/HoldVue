@@ -22,6 +22,21 @@ test('portfolio view model aggregates canonical wallet assets and preserves acco
   assert.equal(model.summary.dayChangePercentScaled, '52632');
 });
 
+test('portfolio stacks native ETH across wallets and Ethereum-compatible rollups without mixing token contracts', () => {
+  const canonicalId = 'asset:evm:native:ethereum';
+  const ethMainnet = position('eth-mainnet', 'w1', { chainId: 1, assetId: 'native:1', baseUnits: '1000000000000000000', quantity: '1' });
+  const ethBase = position('eth-base', 'w2', { chainId: 8453, assetId: 'native:8453', baseUnits: '2000000000000000000', quantity: '2' });
+  const state = baseState({
+    positions: [ethMainnet, ethBase],
+    prices: { quotes: [quote(canonicalId)], statuses: [{ assetId: canonicalId, providerId: 'coingecko.keyless', status: 'ok', errorCode: null, lastGoodFetchedAt: 1 }], valuations: [{ ...valuation(canonicalId, '6000000000000'), quantityBaseUnits: '3000000000000000000' }], history: [], totalEurScaled: '6000000000000', totalUsdScaled: '6600000000000', complete: true, valuedAssets: 1, totalAssets: 1, dayChangeEurScaled: '300000000000', dayChangeUsdScaled: '270000000000', dayChangePercentScaled: '50000' }
+  });
+  const model = buildPortfolioViewModel(state);
+  assert.equal(model.assets.length, 1);
+  assert.equal(model.assets[0].assetId, canonicalId);
+  assert.equal(model.assets[0].quantity, '3');
+  assert.deepEqual(model.assets[0].accounts.map(account => [account.label, account.chain, account.quantity]), [['Synthetic w1', '1', '1'], ['Synthetic w2', '8453', '2']]);
+});
+
 test('portfolio view model handles holdings, hides spam, restores user-hidden assets and conflicts', () => {
   const instrument = { schemaVersion: 4, id: 'i', providerId: 'fmp.market', providerSymbol: 'SYN@X', symbol: 'SYN', name: 'Synthetic ETF', exchange: 'X', currency: 'EUR', type: 'etf' };
   const state = baseState({ settings: settings({ hiddenAssetIds: ['asset:evm:1:native:hidden'] }), positions: [position('p1', 'w1', { assetId: 'hidden', symbol: 'HID', baseUnits: '1', quantity: '0.000000000000000001' }), position('p2', 'w2', { assetId: 'native:eth', decimals: 6, baseUnits: '1', quantity: '0.000001' }), position('p3', 'w1', { assetId: 'native:conflict', symbol: 'CON', baseUnits: '1', quantity: '0.000000000000000001' }), position('p4', 'w2', { assetId: 'native:conflict', symbol: 'CON', decimals: 6, baseUnits: '1', quantity: '0.000001' }), position('p7', 'w1', { assetId: 'native:conflict', symbol: 'CON', baseUnits: '1', quantity: '0.000000000000000001' }), position('p5', 'w1', { assetKind: 'fungible', assetId: `0x${'c'.repeat(40)}`, symbol: 'AIR', baseUnits: '1', quantity: '0.000000000000000001', spam: { riskFlags: ['suspicious-name'], reasons: ['synthetic reason'], hiddenByDefault: true } }), position('p6', 'w1', { assetId: 'native:zero', baseUnits: '0', quantity: '0' })], instruments: [instrument], holdings: [{ schemaVersion: 4, id: 'h', instrumentId: 'i', quantityHundredths: '123', quantity: '1.23', updatedAt: 1 }, { schemaVersion: 4, id: 'hz', instrumentId: 'i', quantityHundredths: '0', quantity: '0', updatedAt: 1 }], prices: { quotes: [quote('asset:evm:1:native:hidden'), quote('asset:evm:1:native:native:eth'), quote('asset:evm:1:native:native:conflict'), quote(`asset:evm:1:fungible:0x${'c'.repeat(40)}`), { ...quote('instrument:i'), source: 'yahoo.finance' }], statuses: [], valuations: [valuation('instrument:i', '1230000000000')], history: [], totalEurScaled: null, totalUsdScaled: null, complete: false, valuedAssets: 0, totalAssets: 4, dayChangeEurScaled: null, dayChangeUsdScaled: null, dayChangePercentScaled: null } });
