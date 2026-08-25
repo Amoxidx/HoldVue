@@ -161,3 +161,32 @@ test('sync pricing stage is optional and contains pricing failures without losin
   const stopped = createSyncCoordinator({ adapters: [adapter(success('4'))], pricing: { run: async () => { throw new Error('stopped'); }, stop() {} }, ids: { next: () => 'pricing-stopped' }, now: () => 9 });
   await assert.rejects(() => stopped.run(state(), { http: { requestJson: async () => ({}) } }), /stopped/);
 });
+
+test('price-only sync preserves wallet state and skips all wallet adapter work', async () => {
+  const initial = reconcileSync(state(), state().wallets[0], success('17'), 10, { next: () => 'seed-price-only' });
+  let factoryCalls = 0;
+  let adapterCalls = 0;
+  let pricingCalls = 0;
+  const coordinator = createSyncCoordinator({
+    adapters: [],
+    adapterFactory: () => {
+      factoryCalls++;
+      return [{ family: 'evm', providerId: 'evm', async scan() { adapterCalls++; return success('19'); } }];
+    },
+    pricing: { async run(current) { pricingCalls++; return { state: current, valuation: {}, results: [] }; }, stop() {} },
+    ids: { next: () => 'price-only-position' },
+    now: () => 20
+  });
+  const priceOnly = await coordinator.run(initial, { http: { requestJson: async () => ({}) } }, { scanWallets: false });
+  assert.deepEqual(priceOnly.results, []);
+  assert.equal(priceOnly.state.positions[0].baseUnits, '17');
+  assert.equal(priceOnly.state.sync.statuses[0].lastAttemptAt, 10);
+  assert.equal(factoryCalls, 0);
+  assert.equal(adapterCalls, 0);
+  assert.equal(pricingCalls, 1);
+  const full = await coordinator.run(initial, { http: { requestJson: async () => ({}) } });
+  assert.equal(full.state.positions[0].baseUnits, '19');
+  assert.equal(factoryCalls, 1);
+  assert.equal(adapterCalls, 1);
+  assert.equal(pricingCalls, 2);
+});

@@ -18,8 +18,12 @@ export interface SyncRun {
   readonly results: readonly AdapterScanResult[];
 }
 
+export interface SyncRunOptions {
+  readonly scanWallets?: boolean;
+}
+
 export interface SyncCoordinator {
-  run(state: PortfolioState, context: Omit<AdapterContext, 'now'>): Promise<SyncRun>;
+  run(state: PortfolioState, context: Omit<AdapterContext, 'now'>, options?: SyncRunOptions): Promise<SyncRun>;
   stop(): void;
   active(): number;
 }
@@ -108,15 +112,16 @@ export function createSyncCoordinator(dependencies: SyncDependencies): SyncCoord
   const inFlight = new Map<string, Promise<SyncRun>>();
   const stopController = new AbortController();
   let stopped = false;
-  const run = (state: PortfolioState, context: Omit<AdapterContext, 'now'>): Promise<SyncRun> => {
+  const run = (state: PortfolioState, context: Omit<AdapterContext, 'now'>, options?: SyncRunOptions): Promise<SyncRun> => {
     if (stopped) return Promise.reject(new Error('stopped'));
-    const key = hash(JSON.stringify({ wallets: state.wallets, settings: state.settings, context: { http: identity(context.http), rpc: identity(context.rpc), secrets: identity(context.secrets), signal: identity(context.signal) } }));
+    const scanWallets = options?.scanWallets !== false;
+    const key = hash(JSON.stringify({ wallets: state.wallets, settings: state.settings, scanWallets, context: { http: identity(context.http), rpc: identity(context.rpc), secrets: identity(context.secrets), signal: identity(context.signal) } }));
     const existing = inFlight.get(key);
     if (existing) return existing;
     const task = (async (): Promise<SyncRun> => {
       let next = parsePortfolioState(state);
-      const wallets = next.wallets.filter(wallet => wallet.enabled);
-      const adapters = dependencies.adapterFactory?.(next) ?? dependencies.adapters;
+      const wallets = scanWallets ? next.wallets.filter(wallet => wallet.enabled) : [];
+      const adapters = scanWallets ? dependencies.adapterFactory?.(next) ?? dependencies.adapters : [];
       const results = wallets.map(() => undefined as unknown as AdapterScanResult);
       await Promise.all(wallets.map((wallet, index) => limiter.run(async () => {
         const adapter = adapterFor(adapters, wallet);

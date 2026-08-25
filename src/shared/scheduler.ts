@@ -26,7 +26,9 @@ export class LocalMinuteScheduler implements MinuteScheduler {
 
   public start(): void {
     if (this.handle !== null) return;
-    this.handle = this.setIntervalFn(() => { void this.onMinute(); }, this.intervalMs);
+    this.handle = this.setIntervalFn(() => {
+      try { void Promise.resolve(this.onMinute()).catch(() => undefined); } catch { /* a scheduler callback must never destabilize the app */ }
+    }, this.intervalMs);
   }
 
   public stop(): void {

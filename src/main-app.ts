@@ -87,6 +87,7 @@ export interface MainCompositionOptions {
   readonly paths: { readonly preload: string; readonly renderer: string; readonly icon?: string };
   readonly platform: string;
   readonly sync?: { readonly coordinator: SyncCoordinator; readonly context?: Omit<AdapterContext, 'now'> };
+  readonly walletScanIntervalMs?: number;
 }
 
 export interface MainComposition {
@@ -102,7 +103,10 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
   let startPromise: Promise<void> | null = null;
   let mutationQueue: Promise<void> = Promise.resolve();
   let refreshPromise: Promise<PublicResult<PortfolioState>> | null = null;
+  let refreshScansWallets = false;
+  let queuedFullRefreshPromise: Promise<PublicResult<PortfolioState>> | null = null;
   let searchController: AbortController | null = null;
+  const walletScanIntervalMs = options.walletScanIntervalMs ?? 5 * 60_000;
 
   const failure = (code: string, message: string): PublicFailure => ({ ok: false, code, message });
   const requestPayload = (args: readonly unknown[]): unknown => args.length > 1 ? args[1] : args[0];
@@ -241,20 +245,33 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
       return { ok: true, value: next };
     } catch { return failure('storage-failed', 'Local state could not be updated.'); }
   });
-  const refresh = (): Promise<PublicResult<PortfolioState>> => {
+  const walletScanDue = (state: PortfolioState): boolean => state.wallets.filter(wallet => wallet.enabled).some(wallet => {
+    const attempts = state.sync.statuses.filter(status => status.walletId === wallet.id && status.lastAttemptAt !== null).map(status => status.lastAttemptAt!);
+    const lastAttemptAt = attempts.length === 0 ? null : Math.max(...attempts);
+    return lastAttemptAt === null || options.clock.now() - lastAttemptAt >= walletScanIntervalMs;
+  });
+  const refresh = (forceWalletScan: boolean): Promise<PublicResult<PortfolioState>> => {
     if (!options.sync) return Promise.resolve(failure('unconfigured', 'No wallet providers are configured.'));
-    if (refreshPromise) return refreshPromise;
+    if (refreshPromise) {
+      if (!forceWalletScan || refreshScansWallets) return refreshPromise;
+      if (queuedFullRefreshPromise) return queuedFullRefreshPromise;
+      const queued = refreshPromise.then(() => refresh(true)).finally(() => { queuedFullRefreshPromise = null; });
+      queuedFullRefreshPromise = queued;
+      return queued;
+    }
+    refreshScansWallets = forceWalletScan;
     const pending = enqueueMutation(async () => {
       try {
         const state = await loadState();
-        const run = await options.sync!.coordinator.run(state, options.sync!.context ?? {});
+        refreshScansWallets ||= walletScanDue(state);
+        const run = await options.sync!.coordinator.run(state, options.sync!.context ?? {}, { scanWallets: refreshScansWallets });
         await options.storage.save(run.state);
         if (windowRef && !windowRef.isDestroyed()) windowRef.webContents.send('holdvue:minute');
         return { ok: true as const, value: run.state };
       } catch (error) {
         return failure(error instanceof Error && error.message === 'stopped' ? 'aborted' : 'sync-failed', 'Wallet synchronization did not complete.');
       }
-    }).finally(() => { refreshPromise = null; });
+    }).finally(() => { refreshPromise = null; refreshScansWallets = false; });
     refreshPromise = pending;
     return pending;
   };
@@ -392,7 +409,7 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
     options.ipcMain.handle('holdvue:delete-etherscan-key', () => mutateProviderKey('evm.erc20', undefined, true));
     options.ipcMain.handle('holdvue:set-fmp-key', (...args: readonly unknown[]) => mutateProviderKey('fmp.market', requestPayload(args), false));
     options.ipcMain.handle('holdvue:delete-fmp-key', () => mutateProviderKey('fmp.market', undefined, true));
-    options.ipcMain.handle('holdvue:refresh', () => refresh());
+    options.ipcMain.handle('holdvue:refresh', () => refresh(true));
   };
 
   const start = (): Promise<void> => {
@@ -411,7 +428,7 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
         options.scheduler.stop();
         if (options.platform !== 'darwin') options.app.quit();
       });
-      if (options.sync) void refresh();
+      if (options.sync) void refresh(true);
     });
     return startPromise;
   };
@@ -423,7 +440,7 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
   return {
     start,
     stop: () => { searchController?.abort(); searchController = null; options.scheduler.stop(); options.sync?.coordinator.stop(); },
-    emitMinute: () => { if (options.sync) void refresh(); else emitMinute(); },
+    emitMinute: () => { if (options.sync) void refresh(false); else emitMinute(); },
     getWindow: () => windowRef
   };
 }

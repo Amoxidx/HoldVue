@@ -24,3 +24,16 @@ test('minute scheduler is idempotent, injectable, and stoppable', async () => {
   defaults.start(); defaults.stop();
   await Promise.resolve();
 });
+
+test('minute scheduler contains synchronous and asynchronous callback failures', async () => {
+  const callbacks = [];
+  const synchronous = new LocalMinuteScheduler({ onMinute: () => { throw new Error('synthetic sync failure'); }, setIntervalFn: callback => { callbacks.push(callback); return 1; } });
+  const asynchronous = new LocalMinuteScheduler({ onMinute: async () => { throw new Error('synthetic async failure'); }, setIntervalFn: callback => { callbacks.push(callback); return 2; } });
+  synchronous.start();
+  asynchronous.start();
+  callbacks.forEach(callback => callback());
+  await Promise.resolve();
+  await Promise.resolve();
+  synchronous.stop();
+  asynchronous.stop();
+});

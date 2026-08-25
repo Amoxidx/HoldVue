@@ -256,6 +256,49 @@ test('minute refresh emits one renderer event with or without configured sync', 
   withSyncComposition.stop();
 });
 
+test('automatic refresh keeps minute prices but throttles wallet scans and queues a forced refresh', async () => {
+  const f = runtimeFixture();
+  let now = 104;
+  let releasePriceOnly;
+  const modes = [];
+  f.storage.state = {
+    ...f.storage.state,
+    wallets: [{ schemaVersion: 3, id: 'efficient-wallet', label: 'Efficient', family: 'evm', address: `0x${'3'.repeat(40)}`, enabled: true, createdAt: 1, options: { autoScanCommonChains: false, chainIds: [1] } }],
+    sync: { schemaVersion: 1, statuses: [{ walletId: 'efficient-wallet', family: 'evm', providerId: 'evm', status: 'ok', lastAttemptAt: 100, lastSuccessAt: 100, errorCode: null }] },
+    settings: { ...f.storage.state.settings, enabledProviderIds: ['evm'] }
+  };
+  const sync = { coordinator: { async run(state, _context, options) {
+    modes.push(options.scanWallets);
+    if (!options.scanWallets && releasePriceOnly === undefined) await new Promise(resolve => { releasePriceOnly = resolve; });
+    return { state, results: [] };
+  }, stop() {}, active() { return 0; } } };
+  const composition = createMainComposition({ app: f.app, BrowserWindow: f.FakeWindow, ipcMain: f.ipcMain, storage: f.storage, scheduler: f.scheduler, sync, walletScanIntervalMs: 10, ids: { next: () => 'efficient-id' }, clock: { now: () => now }, paths: { preload: '/tmp/preload.js', renderer: '/tmp/index.html' }, platform: 'linux' });
+  await composition.start();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(modes, [true]);
+
+  composition.emitMinute();
+  for (let attempt = 0; releasePriceOnly === undefined && attempt < 20; attempt++) await Promise.resolve();
+  assert.deepEqual(modes, [true, false]);
+  composition.emitMinute();
+  const firstManual = f.handlers.get('holdvue:refresh')();
+  const duplicateManual = f.handlers.get('holdvue:refresh')();
+  assert.equal(firstManual, duplicateManual);
+  releasePriceOnly();
+  assert.equal((await firstManual).ok, true);
+  assert.deepEqual(modes, [true, false, true]);
+
+  now = 110;
+  composition.emitMinute();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(modes, [true, false, true, true]);
+  f.storage.state = { ...f.storage.state, sync: { schemaVersion: 1, statuses: [] } };
+  now = 111;
+  composition.emitMinute();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(modes, [true, false, true, true, true]);
+});
+
 test('adding a wallet explicitly enables its family provider for tracking', async () => {
   const cases = [
     { family: 'bitcoin', address: encodeBase58Check(new Uint8Array([0, ...new Uint8Array(20).fill(7)])), options: { network: 'mainnet', addressType: 'address' }, provider: 'bitcoin.mempool' },
