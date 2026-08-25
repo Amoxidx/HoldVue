@@ -95,7 +95,7 @@ export function startMain(load: ElectronLoader = loadRuntimeModule, factory: Com
       const keyId = state.settings.providerRefs.find(item => item.providerId === 'evm.erc20' && item.enabled)?.keyId;
       const chains = resolveChains(state.settings);
       return [
-        createEvmAdapter({ chains, rpc: chains.some(chain => chain.rpcUrl !== null) ? rpc : undefined, scanCoordinator: nativeCoordinator, etherscanRateLimiter, erc20: { endpoint: 'https://api.etherscan.io/v2/api', keyId } }),
+        createEvmAdapter({ chains, rpc, scanCoordinator: nativeCoordinator, etherscanRateLimiter, erc20: { endpoint: 'https://api.etherscan.io/v2/api', keyId } }),
         createBitcoinAdapter(),
         createSolanaAdapter({ endpoint: endpoint('solana.rpc') }),
         createCardanoAdapter({ mainnetEndpoint: endpoint('cardano.koios'), testnetEndpoint: endpoint('cardano.koios.testnet') })

@@ -37,22 +37,22 @@ export const DEFAULT_NATIVE_DECIMALS = 18;
 export function isNativeDecimals(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= 36;
 }
-const chain = (chainId: number, name: string, nativeAsset: string, explorerBaseUrl: string, nativeDecimals: number): EvmChain => ({ family: 'evm', chainId, name, nativeAsset, nativeDecimals, rpcUrl: null, explorerBaseUrl, capabilities, builtin: true });
+const chain = (chainId: number, name: string, nativeAsset: string, rpcUrl: string, explorerBaseUrl: string, nativeDecimals: number): EvmChain => ({ family: 'evm', chainId, name, nativeAsset, nativeDecimals, rpcUrl, explorerBaseUrl, capabilities, builtin: true });
 
 export const COMMON_EVM_CHAINS: readonly EvmChain[] = Object.freeze([
-  chain(1, 'Ethereum', 'ETH', 'https://etherscan.io', 18),
-  chain(8453, 'Base', 'ETH', 'https://basescan.org', 18),
-  chain(42161, 'Arbitrum One', 'ETH', 'https://arbiscan.io', 18),
-  chain(10, 'Optimism', 'ETH', 'https://optimistic.etherscan.io', 18),
-  chain(137, 'Polygon PoS', 'POL', 'https://polygonscan.com', 18),
-  chain(56, 'BNB Smart Chain', 'BNB', 'https://bscscan.com', 18),
-  chain(43114, 'Avalanche C-Chain', 'AVAX', 'https://subnets.avax.network/c-chain', 18),
-  chain(100, 'Gnosis', 'xDAI', 'https://gnosisscan.io', 18),
-  chain(59144, 'Linea', 'ETH', 'https://lineascan.build', 18),
-  chain(534352, 'Scroll', 'ETH', 'https://scrollscan.com', 18),
-  chain(324, 'zkSync Era', 'ETH', 'https://era.zksync.network', 18),
-  chain(42220, 'Celo', 'CELO', 'https://celoscan.io', 18),
-  chain(5000, 'Mantle', 'MNT', 'https://mantlescan.xyz', 18)
+  chain(1, 'Ethereum', 'ETH', 'https://ethereum-rpc.publicnode.com', 'https://etherscan.io', 18),
+  chain(8453, 'Base', 'ETH', 'https://base-rpc.publicnode.com', 'https://basescan.org', 18),
+  chain(42161, 'Arbitrum One', 'ETH', 'https://arbitrum-one-rpc.publicnode.com', 'https://arbiscan.io', 18),
+  chain(10, 'Optimism', 'ETH', 'https://optimism-rpc.publicnode.com', 'https://optimistic.etherscan.io', 18),
+  chain(137, 'Polygon PoS', 'POL', 'https://polygon-bor-rpc.publicnode.com', 'https://polygonscan.com', 18),
+  chain(56, 'BNB Smart Chain', 'BNB', 'https://bsc-rpc.publicnode.com', 'https://bscscan.com', 18),
+  chain(43114, 'Avalanche C-Chain', 'AVAX', 'https://avalanche-c-chain-rpc.publicnode.com/ext/bc/C/rpc', 'https://subnets.avax.network/c-chain', 18),
+  chain(100, 'Gnosis', 'xDAI', 'https://gnosis-rpc.publicnode.com', 'https://gnosisscan.io', 18),
+  chain(59144, 'Linea', 'ETH', 'https://linea-rpc.publicnode.com', 'https://lineascan.build', 18),
+  chain(534352, 'Scroll', 'ETH', 'https://scroll-rpc.publicnode.com', 'https://scrollscan.com', 18),
+  chain(324, 'zkSync Era', 'ETH', 'https://mainnet.era.zksync.io', 'https://era.zksync.network', 18),
+  chain(42220, 'Celo', 'CELO', 'https://forno.celo.org', 'https://celoscan.io', 18),
+  chain(5000, 'Mantle', 'MNT', 'https://rpc.mantle.xyz', 'https://mantlescan.xyz', 18)
 ]);
 
 function credentialPath(parsed: URL): boolean {

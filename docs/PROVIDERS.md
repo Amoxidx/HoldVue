@@ -2,18 +2,18 @@
 
 HoldVue does not ship provider credentials. An empty portfolio performs no
 network request; adding a wallet or manual holding explicitly creates the asset
-scope for its enabled provider. The chain registry is metadata only; users must explicitly configure an HTTPS
-RPC endpoint for direct EVM RPC scanning, or configure the documented
-Etherscan fallback. Provider API keys, if needed for a capability or service
+scope for its enabled provider. The chain registry includes credential-free
+public HTTPS RPC defaults for native EVM balances, which users may replace with
+local overrides. Provider API keys, if needed for a capability or service
 limit, are referenced by an internally generated `ref_...`
 `keyId` bound to its `providerId` and belong in encrypted safeStorage—not in
 the portfolio JSON state. Raw keys in query strings or path segments are
 rejected.
 
-## Configuring a built-in RPC locally
+## Overriding a built-in RPC locally
 
-Built-in chain metadata intentionally has `rpcUrl: null`. A user configures an
-endpoint by saving a credential-free HTTPS override, for example:
+Built-in chain metadata includes a credential-free public HTTPS RPC. A user can
+replace an endpoint by saving a credential-free HTTPS override, for example:
 
 ```ts
 const next = updateSettings(state, {
@@ -24,8 +24,8 @@ const next = updateSettings(state, {
 const chains = resolveChains(next.settings);
 ```
 
-`resolveChains` keeps the built-in Ethereum metadata intact and supplies the
-override only to the scanner. Development-only `http://localhost` endpoints
+`resolveChains` keeps the remaining built-in Ethereum metadata intact and supplies
+the override only to the scanner. Development-only `http://localhost` endpoints
 are accepted through the explicit development resolver option. Provider keys
 are never embedded in these URLs.
 
@@ -37,8 +37,8 @@ decimals.
 
 Before reading a balance, the scanner compares `eth_chainId` with the selected
 chain. A mismatch produces a per-chain `error` result with
-`errorCode: 'chain-mismatch'`; no balance is accepted or persisted. A missing
-override produces `status: 'unconfigured'`. The main composition also accepts
+`errorCode: 'chain-mismatch'`; no balance is accepted or persisted. A custom
+chain without an endpoint produces `status: 'unconfigured'`. The main composition also accepts
 `bitcoin.mempool`, `solana.rpc`, `cardano.koios`, and `evm.erc20` in
 `enabledProviderIds`; Solana/Cardano endpoint overrides are stored in
 `providerEndpoints`. EVM native/token requests use the fixed official
@@ -49,9 +49,9 @@ The default state intentionally keeps `enabledProviderIds` empty so opening a
 fresh install makes no network request. Adding a wallet is explicit onboarding
 and automatically enables only that wallet family's provider. Bitcoin,
 Solana, and Cardano can then use their credential-free official defaults. EVM
-uses an RPC override when one is configured; otherwise a configured free
-Etherscan key enables its native `balance` and bounded token fallback, subject
-to chain/tier limits. The provider toggle remains available for pausing or
+uses a built-in public RPC or a configured override for native balances. A free
+Etherscan key enables bounded ERC-20 discovery, subject to chain/tier limits.
+The provider toggle remains available for pausing or
 re-enabling that family.
 
 For the Etherscan adapter, the settings surface accepts an optional free key in a
@@ -59,8 +59,7 @@ password field. Main IPC encrypts it with Electron `safeStorage` into a
 separate restrictive ciphertext file and stores only an internally generated
 `ref_evm.erc20_...` reference bound to that provider. The secret value never
 appears in settings, URLs, renderer data, responses, or logs. The endpoint is
-the fixed Etherscan V2 path `https://api.etherscan.io/v2/api`. When an RPC
-override is absent, native balances use `module=account&action=balance`.
+the fixed Etherscan V2 path `https://api.etherscan.io/v2/api`.
 Current-holdings responses use `TokenAddress`, `TokenSymbol`, `TokenQuantity`,
 and `TokenDivisor`. If that path reports a PRO/tier restriction, the free
 fallback uses bounded `module=account&action=tokentx` pages (max 1,000 rows per
@@ -83,7 +82,7 @@ per-chain `errorCode: 'aborted'` result without starting RPC work.
 
 | Capability | Status | Boundary |
 | --- | --- | --- |
-| EVM native balance | implemented/configured through RPC or Etherscan V2 `balance` fallback | free encrypted key is needed only when no RPC override exists; chain IDs/statuses stay explicit |
+| EVM native balance | implemented keylessly through built-in public RPCs or user overrides | no provider key required; chain IDs/statuses stay explicit |
 | EVM known-token discovery | implemented/configured through Etherscan V2 current-holdings or bounded free fallback | `tokentx` discovery + `tokenbalance`; provider tier/PRO/rate limits/caps are explicit; no completeness claim |
 | Bitcoin address balance | implemented/configured through mempool.space | confirmed and mempool deltas are exact; xpub/ypub/zpub/tpub/upub/vpub unsupported |
 | Solana native + fungible token accounts | implemented/configured through JSON-RPC | SPL and Token-2022 are read with raw amounts; NFT-like/uncertain rows are filtered |

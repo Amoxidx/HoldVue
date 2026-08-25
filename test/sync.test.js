@@ -31,6 +31,17 @@ test('sync coordinator atomically persists successful positions and status, with
   assert.equal(fraction.positions[0].quantity, '1');
 });
 
+test('wallet reconciliation preserves schema v5 quotes and chart history across minute syncs', () => {
+  const initial = state();
+  const history = [{ id: 'portfolio', kind: 'portfolio-value', points: [{ timestamp: 1, valueEurScaled: '100', valueUsdScaled: '110', coverage: 'complete' }] }];
+  const priced = parsePortfolioState({ ...initial, prices: { ...initial.prices, history, totalEurScaled: '100', totalUsdScaled: '110' } });
+  const reconciled = reconcileSync(priced, priced.wallets[0], success('7'), 2, { next: () => 'history-position' });
+  assert.equal(reconciled.schemaVersion, 5);
+  assert.deepEqual(reconciled.prices.history, history);
+  assert.equal(reconciled.prices.totalEurScaled, '100');
+  assert.equal(reconciled.prices.totalUsdScaled, '110');
+});
+
 test('provider disabled, unsupported, and error results preserve old positions and expose stable status', async () => {
   const initial = state();
   const seeded = reconcileSync(initial, initial.wallets[0], success('9'), 4, { next: () => 'seed-position' });

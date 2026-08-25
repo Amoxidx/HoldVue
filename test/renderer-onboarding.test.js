@@ -57,6 +57,7 @@ test('renderer wallet onboarding, management, settings, copy, confirmation, keyb
     async addWallet(input) { const wallet = syntheticWallet(input.family, `added-${state.wallets.length}`, input.address, input.options); state = { ...state, wallets: [...state.wallets, wallet] }; return success(state); },
     async updateWallet(id, input) { state = { ...state, wallets: state.wallets.map(wallet => wallet.id === id ? { ...wallet, ...input, options: input.options ?? wallet.options } : wallet) }; return success(state); },
     async deleteWallet(id) { state = { ...state, wallets: state.wallets.filter(wallet => wallet.id !== id) }; return success(state); },
+    async refresh() { return success(state); },
     async updateSettings(patch) { if (settingsFailure) return { ok: false, code: 'storage-failed', message: 'Synthetic settings failure.' }; state = { ...state, settings: { ...state.settings, ...patch } }; return success(state); },
     async copyWalletAddress(id) { if (!state.wallets.some(wallet => wallet.id === id)) return { ok: false, code: 'not-found', message: 'Synthetic missing wallet.' }; if (clipboardMode === 'fail') return { ok: false, code: 'clipboard-failed', message: 'Synthetic clipboard failure.' }; return success({ copied: true }); },
     onMinute(callback) { minute = callback; return () => { minute = null; }; }

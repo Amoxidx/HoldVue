@@ -100,7 +100,7 @@ export function reconcileSync(state: PortfolioState, wallet: WalletSource, resul
   const nextPositions = result.status === 'ok' || result.status === 'empty' || result.status === 'partial' ? replacePositions(state, wallet, result, now, ids) : state.positions;
   const status = statusRecord(wallet, result, now, state.sync.statuses);
   const statuses = [...state.sync.statuses.filter(item => !(item.walletId === wallet.id && item.providerId === result.providerId)), status];
-  return parsePortfolioState({ ...state, schemaVersion: 3, positions: nextPositions, sync: { schemaVersion: 1, statuses } });
+  return parsePortfolioState({ ...state, positions: nextPositions, sync: { schemaVersion: 1, statuses } });
 }
 
 export function createSyncCoordinator(dependencies: SyncDependencies): SyncCoordinator {

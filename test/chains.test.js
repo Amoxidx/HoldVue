@@ -14,7 +14,8 @@ test('common EVM registry contains the documented networks and capability flags'
   assert.equal(base.explorerBaseUrl, 'https://basescan.org');
   assert.equal(base.capabilities.nativeBalance, true);
   assert.equal(base.capabilities.erc20Enumeration, 'unsupported');
-  assert.equal(base.rpcUrl, null);
+  assert.equal(base.rpcUrl, 'https://base-rpc.publicnode.com');
+  assert.equal(COMMON_EVM_CHAINS.every(chain => typeof chain.rpcUrl === 'string' && chain.rpcUrl.startsWith('https://')), true);
   assert.equal(base.nativeDecimals, 18);
   assert.equal(COMMON_EVM_CHAINS.every(chain => chain.nativeDecimals === 18), true);
 });

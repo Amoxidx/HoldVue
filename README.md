@@ -17,8 +17,8 @@ are allowed, never key values in the portfolio state.
 The current capability boundary is intentionally explicit:
 
 - implemented: typed wallet CRUD, schema-v5 migration, offline address checksums, common-EVM metadata, injected transport, exact integer-unit reconciliation, fixed-point valuation/history, and fail-closed secret storage;
-- live adapters, configured explicitly: EVM native RPC balances; Bitcoin address balances through mempool.space; Solana native/SPL and Token-2022 fungible balances; and Cardano native/fungible Koios balances;
-- limited by provider capability: EVM native balances use configured RPC first and the official Etherscan V2 `balance` endpoint when no RPC is configured and a free encrypted key is supplied. Token discovery uses the current-holdings path when available, then falls back to bounded `tokentx` discovery plus `tokenbalance` for free keys. Rate limits, 3-calls/second and 100k/day caps, PRO restrictions, malformed data, and unsupported chains remain visible partial/unconfigured statuses and never become zero balances;
+- live adapters, configured explicitly: EVM native balances through credential-free built-in public RPCs (replaceable by local overrides); Bitcoin address balances through mempool.space; Solana native/SPL and Token-2022 fungible balances; and Cardano native/fungible Koios balances;
+- limited by provider capability: EVM native balances work without a key. ERC-20 discovery uses the official Etherscan V2 current-holdings path when a free encrypted key is supplied, then falls back to bounded `tokentx` discovery plus `tokenbalance` where required. Rate limits, 3-calls/second and 100k/day caps, PRO restrictions, malformed data, and unsupported chains remain visible partial/unconfigured statuses and never become zero balances;
 - implemented/configured without a crypto key: CoinGecko keyless EUR/USD quotes for supported mainnet native assets and known fungible contracts. Testnet/devnet assets and unsupported platforms stay explicitly unpriced. Quotes, values, daily changes, and local history use exact scaled integer strings; provider failures preserve last-good data and never become zero;
 - implemented without a key for stocks/ETFs: Yahoo Finance search and chart data provide automatic instrument discovery and current quotes. Returned symbols, types, currencies, timestamps, previous closes, and FX crosses are validated strictly; missing, malformed, mismatched, or rate-limited responses remain visibly unpriced/partial and never become zero;
 - implemented with the optional encrypted FMP key as a fallback: batch stock/ETF quotes and official FX conversion can fill instruments Yahoo did not price. Missing key, tier limits, missing FX, malformed rows, and rate limits remain partial/unpriced; no one-to-one currency assumption or price inference is made;
@@ -36,15 +36,15 @@ the portfolio stores only an internally generated safeStorage reference. The
 default portfolio remains empty and has no enabled providers. Adding a wallet
 is the explicit onboarding action: it enables that family's provider
 (`bitcoin.mempool`, `solana.rpc`, `cardano.koios`, or `evm`) so the next manual
-or scheduled refresh can track it. EVM uses a credential-free RPC override
-when present; without one, a configured free Etherscan key can provide the
-documented balance/token fallback. Chain and provider tier limits remain
+or scheduled refresh can track it. EVM native balances use credential-free
+built-in public RPCs or a user override; a configured free Etherscan key adds
+the documented ERC-20 discovery path. Chain and provider tier limits remain
 visible as partial/unconfigured status, and no incomplete result is reported
 as complete. Deleting a wallet also removes its associated local positions
 through the domain integrity rules.
 
-No live endpoint is selected by default, and all unit tests use injected local
-fakes. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
+No network request is made before the user explicitly adds a wallet or manual
+holding, and all unit tests use injected local fakes. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
 [docs/PROVIDERS.md](docs/PROVIDERS.md) for the boundaries and official
 references.
 
@@ -75,8 +75,9 @@ scheduler is local; when adapters are explicitly configured, main performs one
 initial sync and one refresh per minute while the app is open. All network
 ports, clocks, IDs, and timers are injectable.
 
-Built-in RPCs are configured locally through credential-free `rpcOverrides`
-keyed by chain ID; built-in metadata is never overwritten. Enable the matching
+Built-in EVM chains include credential-free public RPC defaults. Optional
+`rpcOverrides` keyed by chain ID replace those endpoints without overwriting
+the remaining built-in metadata. Enable the matching
 provider ID in `settings.enabledProviderIds`. The scanner checks
 `eth_chainId` before `eth_getBalance` and reports `chain-mismatch` without
 accepting a balance when an endpoint serves the wrong network. Provider keys,

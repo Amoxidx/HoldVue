@@ -59,7 +59,7 @@ rejects credentials, local/private targets, and credential-looking paths. It
 never runs unless a caller supplies an adapter and explicitly invokes it.
 
 `src/shared/scanner.ts` implements JSON-RPC envelope validation and EVM native
-balance reads through configured RPC URLs. Hex quantities are parsed as `bigint`
+balance reads through credential-free built-in public RPCs or user overrides. Hex quantities are parsed as `bigint`
 and formatted exactly using the selected chain's persisted `nativeDecimals`
 (built-ins default explicitly to 18). Missing RPCs report
 `unconfigured`; malformed responses and provider failures stay per-chain. Each
@@ -71,9 +71,8 @@ concurrency limit at each chain RPC operation, including scans spanning
 multiple wallets and chains. A queued, aborted operation is discarded before
 it can call the injected RPC port.
 `src/shared/adapters.ts` contains explicit, injected adapters. The EVM adapter
-uses configured native RPC scans first, or the official Etherscan V2 `balance`
-fallback when no RPC is configured and an encrypted free-key reference exists.
-Token discovery keeps the current-holdings path and falls back from a PRO/tier
+uses native RPC scans without a key. Token discovery uses the official Etherscan
+V2 current-holdings path when an encrypted free-key reference exists and falls back from a PRO/tier
 response to bounded `tokentx` contract discovery followed by `tokenbalance`.
 The injected limiter enforces three calls per second and 100,000 calls per day;
 pages, contracts, malformed metadata, NFT-shaped transfers, unsupported chains,
@@ -161,9 +160,9 @@ empty/partial states.
 The empty default keeps all providers disabled. A user Add-wallet action is
 explicit onboarding: main enables only the corresponding family provider in
 the persisted settings. Bitcoin, Solana, and Cardano can then use their fixed
-credential-free defaults; EVM uses a chain RPC override when available and can
-otherwise use an encrypted Etherscan key for its bounded balance/token
-fallback. RPC remains preferred, and chain/tier limits remain explicit.
+credential-free defaults; EVM uses credential-free built-in public RPCs or a
+chain override for native balances. An encrypted Etherscan key adds bounded
+ERC-20 discovery. Chain/tier limits remain explicit.
 
 ## Release packaging
 
