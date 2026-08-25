@@ -71,7 +71,9 @@ concurrency limit at each chain RPC operation, including scans spanning
 multiple wallets and chains. A queued, aborted operation is discarded before
 it can call the injected RPC port.
 `src/shared/adapters.ts` contains explicit, injected adapters. The EVM adapter
-uses native RPC scans without a key. Token discovery uses the official Etherscan
+uses native RPC scans without a key. Listed-token discovery uses CoinGecko's
+contract catalog and verifies balances and decimals directly on-chain. Optional
+indexer expansion uses the official Etherscan
 V2 current-holdings path when an encrypted free-key reference exists and falls back from a PRO/tier
 response to bounded `tokentx` contract discovery followed by `tokenbalance`.
 The injected limiter enforces three calls per second and 100,000 calls per day;
@@ -161,8 +163,9 @@ The empty default keeps all providers disabled. A user Add-wallet action is
 explicit onboarding: main enables only the corresponding family provider in
 the persisted settings. Bitcoin, Solana, and Cardano can then use their fixed
 credential-free defaults; EVM uses credential-free built-in public RPCs or a
-chain override for native balances. An encrypted Etherscan key adds bounded
-ERC-20 discovery. Chain/tier limits remain explicit.
+chain override for native balances. Keyless catalog discovery adds bounded,
+on-chain-verified ERC-20 coverage; an encrypted Etherscan key can expand it on
+chains included in the configured tier. Chain/tier limits remain explicit.
 
 ## Release packaging
 

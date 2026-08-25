@@ -5,6 +5,7 @@ import type { EvmWalletSource, Position, WalletSource, Settings } from './state.
 import type { EvmChain } from './chains.ts';
 import { formatUnits, scanEvmNativeBalances, type JsonRpcPort, type ScanCoordinator } from './scanner.ts';
 import type { SecretStore } from './secrets.ts';
+import type { EvmTokenDiscovery } from './evm-token-discovery.ts';
 
 export type AdapterStatus = 'ok' | 'empty' | 'partial' | 'unsupported' | 'unconfigured' | 'rate-limited' | 'error' | 'aborted';
 export type AdapterCapability = 'native-complete' | 'known-tokens' | 'token-discovery-unavailable';
@@ -15,6 +16,7 @@ export interface PositionDraft {
   readonly assetKind: 'native' | 'fungible';
   readonly assetId: string;
   readonly symbol: string;
+  readonly assetName?: string;
   readonly baseUnits: string;
   readonly confirmedBaseUnits?: string;
   readonly pendingBaseUnits?: string;
@@ -60,6 +62,7 @@ export interface EvmAdapterOptions {
     readonly rateLimit?: EtherscanRateLimitOptions;
   };
   readonly scanCoordinator?: ScanCoordinator;
+  readonly tokenDiscovery?: EvmTokenDiscovery;
   readonly concurrency?: number;
 }
 
@@ -110,6 +113,18 @@ function nativeDraft(family: WalletSource['family'], chainId: number | null, ass
 
 function fungibleDraft(family: WalletSource['family'], chainId: number | null, assetId: string, symbol: string, baseUnits: string, decimals: number): PositionDraft {
   return { family, chainId, assetKind: 'fungible', assetId, symbol, baseUnits, decimals };
+}
+
+export function mergeTokenResults(indexed: AdapterScanResult, catalog: AdapterScanResult | null): AdapterScanResult {
+  if (catalog === null) return indexed;
+  const positions = new Map<string, PositionDraft>();
+  for (const draft of [...indexed.positions, ...catalog.positions]) positions.set(`${draft.chainId ?? 'none'}:${draft.assetId.toLowerCase()}`, draft);
+  const indexedComplete = indexed.status === 'ok' || indexed.status === 'empty';
+  if (indexedComplete) return result('evm', 'evm.erc20', positions.size === 0 ? 'empty' : 'ok', 'known-tokens', [...positions.values()]);
+  const catalogCovered = catalog.status === 'ok' || catalog.status === 'empty' || catalog.status === 'partial';
+  if (catalogCovered) return result('evm', 'evm.erc20', 'partial', 'known-tokens', [...positions.values()], catalog.errorCode ?? indexed.errorCode);
+  if (indexed.positions.length > 0) return result('evm', 'evm.erc20', 'partial', 'known-tokens', [...positions.values()], indexed.errorCode ?? catalog.errorCode);
+  return indexed.status === 'unconfigured' || indexed.status === 'unsupported' ? result('evm', 'evm.erc20', catalog.status, catalog.capability, catalog.positions, catalog.errorCode) : indexed;
 }
 
 function parseErc20Rows(value: unknown, chainId: number): { readonly positions: readonly PositionDraft[]; readonly malformed: boolean } {
@@ -426,7 +441,12 @@ export function createEvmAdapter(options: EvmAdapterOptions): WalletAdapter {
       const etherscanError = etherscanNative && (etherscanNative.status === 'error' || etherscanNative.status === 'rate-limited' || etherscanNative.status === 'unsupported' || etherscanNative.status === 'aborted' || etherscanNative.status === 'partial') ? { errorCode: etherscanNative.errorCode } : undefined;
       const nativeErrors = etherscanError ?? (rpcError ? { errorCode: rpcError.errorCode } : undefined);
       const nativeUnconfigured = (native.length > 0 && native.every(item => item.status === 'unconfigured')) || etherscanNative?.status === 'unconfigured';
-      const token = options.erc20 && etherscanLimiter ? await scanErc20(wallet, options.erc20, context, options.chains, etherscanLimiter) : result('evm', 'evm.erc20', 'unconfigured', 'token-discovery-unavailable', [], 'unconfigured');
+      const indexedToken = options.erc20 && etherscanLimiter ? await scanErc20(wallet, options.erc20, context, options.chains, etherscanLimiter) : result('evm', 'evm.erc20', 'unconfigured', 'token-discovery-unavailable', [], 'unconfigured');
+      const priorityChainIds = new Set([...nativePositions.map(item => item.chainId), ...wallet.options.chainIds]);
+      const catalogChains = selected.filter(chain => priorityChainIds.has(chain.chainId));
+      const tokenCatalogChains = catalogChains.length > 0 ? catalogChains : selected.filter(chain => chain.chainId === 1 || chain.chainId === 8453);
+      const catalogToken = options.tokenDiscovery ? await options.tokenDiscovery.scan(wallet, tokenCatalogChains, context) : null;
+      const token = mergeTokenResults(indexedToken, catalogToken);
       const tokenUnavailable = token.status === 'unconfigured' || token.status === 'unsupported' || token.status === 'rate-limited' || token.status === 'error' || token.status === 'aborted';
       const nativeAvailable = native.some(item => item.status === 'ok' || item.status === 'error') || (etherscanNative !== null && etherscanNative.status !== 'unconfigured');
       const nativeConfigured = native.some(item => item.status !== 'unconfigured') || (etherscanNative !== null && etherscanNative.status !== 'unconfigured');
@@ -590,5 +610,5 @@ export function createCardanoAdapter(options: CardanoAdapterOptions = {}): Walle
 export function positionFromDraft(walletId: string, draft: PositionDraft, now: number, id: string): Position {
   const confirmed = draft.confirmedBaseUnits ?? draft.baseUnits;
   const pending = draft.pendingBaseUnits ?? '0';
-  return { schemaVersion: 3, id, walletId, family: draft.family, chainId: draft.chainId, assetKind: draft.assetKind, assetId: draft.assetId, symbol: draft.symbol, baseUnits: draft.baseUnits, quantity: formatUnits(BigInt(draft.baseUnits), draft.decimals), confirmedBaseUnits: confirmed, pendingBaseUnits: pending, decimals: draft.decimals, updatedAt: now, spam: draft.assetKind === 'native' ? null : draft.spam ?? null };
+  return { schemaVersion: 3, id, walletId, family: draft.family, chainId: draft.chainId, assetKind: draft.assetKind, assetId: draft.assetId, symbol: draft.symbol, ...(draft.assetName ? { assetName: draft.assetName } : {}), baseUnits: draft.baseUnits, quantity: formatUnits(BigInt(draft.baseUnits), draft.decimals), confirmedBaseUnits: confirmed, pendingBaseUnits: pending, decimals: draft.decimals, updatedAt: now, spam: draft.assetKind === 'native' ? null : draft.spam ?? null };
 }

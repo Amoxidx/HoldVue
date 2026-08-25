@@ -193,7 +193,7 @@ export function createCoinGeckoPriceAdapter(options: CoinGeckoOptions): PricePro
     const groups: PriceAsset[][] = [];
     for (const platform of [...new Set(tokenGroups.map(asset => asset.platform!))]) {
       const platformAssets = tokenGroups.filter(asset => asset.platform === platform);
-      for (let offset = 0; offset < platformAssets.length; offset += batch) groups.push(platformAssets.slice(offset, offset + batch));
+      for (let offset = 0; offset < platformAssets.length; offset++) groups.push(platformAssets.slice(offset, offset + 1));
     }
     for (let offset = 0; offset < groups.length; offset += concurrency) await Promise.all(groups.slice(offset, offset + concurrency).map(group => runGroup(group)));
     for (const asset of assets) if (!statuses.some(status => status.assetId === asset.assetId)) { partial = true; statuses.push(statusFor(asset.assetId, COINGECKO_PROVIDER_ID, cooldown ? 'rate-limited' : 'unpriced', cooldown ? 'rate-limited' : 'unsupported-asset', null)); }

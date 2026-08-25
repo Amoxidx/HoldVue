@@ -50,7 +50,7 @@ function adapterFor(adapters: readonly WalletAdapter[], wallet: WalletSource): W
 
 function toPosition(wallet: WalletSource, draft: AdapterScanResult['positions'][number], now: number, id: string): Position {
   const quantity = formatDraftQuantity(draft.baseUnits, draft.decimals);
-  return { schemaVersion: 3, id, walletId: wallet.id, family: draft.family, chainId: draft.chainId, assetKind: draft.assetKind, assetId: draft.assetId, symbol: draft.symbol, baseUnits: draft.baseUnits, quantity, confirmedBaseUnits: draft.confirmedBaseUnits ?? draft.baseUnits, pendingBaseUnits: draft.pendingBaseUnits ?? '0', decimals: draft.decimals, updatedAt: now, spam: draft.assetKind === 'native' ? null : draft.spam ?? null };
+  return { schemaVersion: 3, id, walletId: wallet.id, family: draft.family, chainId: draft.chainId, assetKind: draft.assetKind, assetId: draft.assetId, symbol: draft.symbol, ...(draft.assetName ? { assetName: draft.assetName } : {}), baseUnits: draft.baseUnits, quantity, confirmedBaseUnits: draft.confirmedBaseUnits ?? draft.baseUnits, pendingBaseUnits: draft.pendingBaseUnits ?? '0', decimals: draft.decimals, updatedAt: now, spam: draft.assetKind === 'native' ? null : draft.spam ?? null };
 }
 
 function formatDraftQuantity(baseUnits: string, decimals: number): string {

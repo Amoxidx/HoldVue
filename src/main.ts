@@ -14,6 +14,7 @@ import { createSyncCoordinator } from './shared/sync.ts';
 import { createSafeStorageSecretStore, JsonEncryptedBlobStore, type SafeStorageLike } from './shared/secrets.ts';
 import { createCombinedSearchAdapter, createFmpSearchAdapter, createLocalCatalogSearchAdapter, createYahooSearchAdapter } from './shared/market.ts';
 import { createCoinGeckoPriceAdapter, createFmpQuoteAdapter, createPricingCoordinator, createYahooQuoteAdapter } from './shared/pricing.ts';
+import { createCoinGeckoEvmTokenDiscovery } from './shared/evm-token-discovery.ts';
 import type { StateStorage } from './shared/storage.ts';
 import type { SecretStore } from './shared/secrets.ts';
 
@@ -74,6 +75,17 @@ export function startMain(load: ElectronLoader = loadRuntimeModule, factory: Com
   ]);
   const nativeCoordinator = createScanCoordinator(4);
   const etherscanRateLimiter = createEtherscanRateLimiter();
+  const tokenDiscovery = createCoinGeckoEvmTokenDiscovery({
+    http: transport,
+    batchSize: 100,
+    batchSizesByChainId: { 8453: 25 },
+    concurrency: 4,
+    rpcDelayMs: 250,
+    rpcTimeoutMs: 8_000,
+    rpcFallbacks: {
+      1: ['https://public.1rpc.io/eth'], 10: ['https://public.1rpc.io/op'], 56: ['https://public.1rpc.io/bnb'], 100: ['https://public.1rpc.io/gnosis'], 137: ['https://public.1rpc.io/matic'], 324: ['https://public.1rpc.io/zksync2-era'], 5000: ['https://public.1rpc.io/mantle'], 8453: ['https://mainnet.base.org', 'https://public.1rpc.io/base'], 42161: ['https://public.1rpc.io/arb'], 42220: ['https://public.1rpc.io/celo'], 43114: ['https://public.1rpc.io/avax/c'], 59144: ['https://public.1rpc.io/linea'], 534352: ['https://public.1rpc.io/scroll']
+    }
+  });
   const pricingCoordinator = createPricingCoordinator({
     now: Date.now,
     providers: [
@@ -95,7 +107,7 @@ export function startMain(load: ElectronLoader = loadRuntimeModule, factory: Com
       const keyId = state.settings.providerRefs.find(item => item.providerId === 'evm.erc20' && item.enabled)?.keyId;
       const chains = resolveChains(state.settings);
       return [
-        createEvmAdapter({ chains, rpc, scanCoordinator: nativeCoordinator, etherscanRateLimiter, erc20: { endpoint: 'https://api.etherscan.io/v2/api', keyId } }),
+        createEvmAdapter({ chains, rpc, scanCoordinator: nativeCoordinator, etherscanRateLimiter, tokenDiscovery, erc20: { endpoint: 'https://api.etherscan.io/v2/api', keyId } }),
         createBitcoinAdapter(),
         createSolanaAdapter({ endpoint: endpoint('solana.rpc') }),
         createCardanoAdapter({ mainnetEndpoint: endpoint('cardano.koios'), testnetEndpoint: endpoint('cardano.koios.testnet') })

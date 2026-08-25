@@ -18,7 +18,8 @@ The current capability boundary is intentionally explicit:
 
 - implemented: typed wallet CRUD, schema-v5 migration, offline address checksums, common-EVM metadata, injected transport, exact integer-unit reconciliation, fixed-point valuation/history, and fail-closed secret storage;
 - live adapters, configured explicitly: EVM native balances through credential-free built-in public RPCs (replaceable by local overrides); Bitcoin address balances through mempool.space; Solana native/SPL and Token-2022 fungible balances; and Cardano native/fungible Koios balances;
-- limited by provider capability: EVM native balances work without a key. ERC-20 discovery uses the official Etherscan V2 current-holdings path when a free encrypted key is supplied, then falls back to bounded `tokentx` discovery plus `tokenbalance` where required. Rate limits, 3-calls/second and 100k/day caps, PRO restrictions, malformed data, and unsupported chains remain visible partial/unconfigured statuses and never become zero balances;
+- implemented without a key for listed ERC-20 assets: HoldVue downloads CoinGecko's contract catalog, batches `balanceOf` reads against the selected chain, validates `decimals` on-chain, and caches positive contracts for lightweight minute refreshes. Public RPC failover and concurrency are bounded. This is honest catalog coverage rather than a claim to enumerate every contract ever deployed;
+- optional indexer coverage: an encrypted Etherscan key can add the official V2 current-holdings path and bounded `tokentx` plus `tokenbalance` fallback on chains included in the user's Etherscan tier. Etherscan's Free Tier does not currently include Base; tier/rate limits, malformed data, and unsupported chains remain visible partial statuses and never become zero balances;
 - implemented/configured without a crypto key: CoinGecko keyless EUR/USD quotes for supported mainnet native assets and known fungible contracts. Testnet/devnet assets and unsupported platforms stay explicitly unpriced. Quotes, values, daily changes, and local history use exact scaled integer strings; provider failures preserve last-good data and never become zero;
 - implemented without a key for stocks/ETFs: Yahoo Finance search and chart data provide automatic instrument discovery and current quotes. Returned symbols, types, currencies, timestamps, previous closes, and FX crosses are validated strictly; missing, malformed, mismatched, or rate-limited responses remain visibly unpriced/partial and never become zero;
 - implemented with the optional encrypted FMP key as a fallback: batch stock/ETF quotes and official FX conversion can fill instruments Yahoo did not price. Missing key, tier limits, missing FX, malformed rows, and rate limits remain partial/unpriced; no one-to-one currency assumption or price inference is made;
@@ -37,8 +38,9 @@ default portfolio remains empty and has no enabled providers. Adding a wallet
 is the explicit onboarding action: it enables that family's provider
 (`bitcoin.mempool`, `solana.rpc`, `cardano.koios`, or `evm`) so the next manual
 or scheduled refresh can track it. EVM native balances use credential-free
-built-in public RPCs or a user override; a configured free Etherscan key adds
-the documented ERC-20 discovery path. Chain and provider tier limits remain
+built-in public RPCs or a user override. CoinGecko-listed ERC-20 contracts are
+verified directly on-chain without a key; an optional tier-appropriate Etherscan key adds
+indexer coverage for additional contracts. Chain and provider tier limits remain
 visible as partial/unconfigured status, and no incomplete result is reported
 as complete. Deleting a wallet also removes its associated local positions
 through the domain integrity rules.

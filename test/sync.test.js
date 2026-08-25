@@ -27,8 +27,9 @@ test('sync coordinator atomically persists successful positions and status, with
   assert.equal(run.state.positions[0].quantity, '0.000000000000000007');
   assert.equal(run.state.sync.statuses[0].lastSuccessAt, 10);
   assert.equal(coordinator.active(), 0);
-  const fraction = reconcileSync(initial, initial.wallets[0], { ...success('100'), positions: [{ ...draft('100'), decimals: 2 }] }, 11, { next: () => 'fraction-position' });
+  const fraction = reconcileSync(initial, initial.wallets[0], { ...success('100'), positions: [{ ...draft('100'), assetName: 'Named asset', decimals: 2 }] }, 11, { next: () => 'fraction-position' });
   assert.equal(fraction.positions[0].quantity, '1');
+  assert.equal(fraction.positions[0].assetName, 'Named asset');
 });
 
 test('wallet reconciliation preserves schema v5 quotes and chart history across minute syncs', () => {

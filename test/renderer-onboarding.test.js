@@ -21,7 +21,7 @@ class FakeElement {
 function syntheticWallet(family, id, address, options) { return { schemaVersion: 2, id, label: id, family, address, enabled: true, createdAt: 1, options }; }
 
 function fixture() {
-  const selectors = ['[data-status]', '[data-position-count]', '[data-wallet-list]', '[data-settings-wallet-list]', '[data-wallet-dialog]', '[data-wallet-form]', '[data-delete-dialog]', '[data-settings-dialog]', '[data-wallet-error]', '[data-add-wallet]', '[data-open-settings]', '[data-wallet-address]', '[data-wallet-label]', '[data-wallet-family]', '[data-wallet-enabled]', '[data-wallet-all-evm]', '[data-evm-options]', '[data-evm-chains]', '[data-wallet-detection]', '[data-wallet-cancel]', '[data-delete-cancel]', '[data-delete-confirm]', '[data-delete-wallet-label]', '[data-settings-close]', '[data-setting-currency]', '[data-setting-locale]', '[data-setting-theme]', '[data-setting-scheduler]', '[data-setting-spam]', '[data-setting-hidden-spam]'];
+  const selectors = ['[data-status]', '[data-sync-summary]', '[data-position-count]', '[data-wallet-list]', '[data-settings-wallet-list]', '[data-wallet-dialog]', '[data-wallet-form]', '[data-delete-dialog]', '[data-settings-dialog]', '[data-wallet-error]', '[data-add-wallet]', '[data-open-settings]', '[data-wallet-address]', '[data-wallet-label]', '[data-wallet-family]', '[data-wallet-enabled]', '[data-wallet-all-evm]', '[data-evm-options]', '[data-evm-chains]', '[data-wallet-detection]', '[data-wallet-cancel]', '[data-delete-cancel]', '[data-delete-confirm]', '[data-delete-wallet-label]', '[data-settings-close]', '[data-setting-currency]', '[data-setting-locale]', '[data-setting-theme]', '[data-setting-scheduler]', '[data-setting-spam]', '[data-setting-hidden-spam]'];
   const documentRef = { documentElement: { lang: 'de', dataset: {} }, activeElement: null, elements: new Map(), listeners: new Map(), querySelector(selector) { return this.elements.get(selector) ?? null; }, addEventListener(type, callback) { const list = this.listeners.get(type) ?? []; list.push(callback); this.listeners.set(type, list); }, removeEventListener(type, callback) { this.listeners.set(type, (this.listeners.get(type) ?? []).filter(item => item !== callback)); }, dispatch(type, extra = {}) { for (const callback of this.listeners.get(type) ?? []) callback({ key: extra.key, preventDefault() {} }); } };
   for (const selector of selectors) documentRef.elements.set(selector, new FakeElement(documentRef));
   documentRef.elements.get('[data-wallet-dialog]').hidden = true;
@@ -68,6 +68,11 @@ test('renderer wallet onboarding, management, settings, copy, confirmation, keyb
   assert.match(documentRef.elements.get('[data-wallet-list]').innerHTML, /evm-synthetic/);
   assert.equal(documentRef.elements.get('[data-position-count]').textContent, '0');
   assert.equal(documentRef.documentElement.dataset.state, 'ready');
+  for (const code of ['catalog-coverage', 'catalog-rpc-partial', 'stale-catalog']) {
+    state = { ...state, sync: { schemaVersion: 1, statuses: [{ ...state.sync.statuses[0], errorCode: code }] } };
+    await controller.render();
+    assert.match(documentRef.elements.get('[data-sync-summary]').textContent, /on-chain/);
+  }
   controller.start();
   assert.equal(documentRef.elements.get('[data-add-wallet]').listeners.get('click').length, 1);
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { encodeBase58Check, encodeBech32 } from '../src/shared/addresses.ts';
-import { createBitcoinAdapter, createCardanoAdapter, createEvmAdapter, createEtherscanRateLimiter, createSolanaAdapter, positionFromDraft } from '../src/shared/adapters.ts';
+import { createBitcoinAdapter, createCardanoAdapter, createEvmAdapter, createEtherscanRateLimiter, createSolanaAdapter, mergeTokenResults, positionFromDraft } from '../src/shared/adapters.ts';
 import { createJsonRpcPort } from '../src/shared/scanner.ts';
 import { TransportError } from '../src/shared/transport.ts';
 
@@ -33,6 +33,47 @@ test('EVM adapter reports exact native units and provider token capability hones
   assert.equal(positionFromDraft('wallet-evm', scanned.positions[0], 1, 'position-native').quantity, '0.000000000000123456');
   assert.equal((await createEvmAdapter({ chains: [], rpc: undefined }).scan(wallet('evm', evmAddress, { autoScanCommonChains: true, chainIds: [] }), { now: 1 })).status, 'unconfigured');
   assert.equal((await adapter.scan(wallet('bitcoin', btcAddress, { network: 'mainnet', addressType: 'address' }), { now: 1 })).errorCode, 'family-mismatch');
+});
+
+test('EVM adapter merges keyless on-chain catalog discovery with optional explorer coverage', async () => {
+  const token = { family: 'evm', chainId: 8453, assetKind: 'fungible', assetId: `0x${'a'.repeat(40)}`, symbol: 'CAT', assetName: 'Catalog Token', baseUnits: '42', decimals: 6, spam: { riskFlags: [], reasons: [], hiddenByDefault: false } };
+  const observed = [];
+  const catalog = { async scan(_wallet, chains) { observed.push(chains.map(chain => chain.chainId)); return { family: 'evm', providerId: 'evm.catalog', status: 'partial', capability: 'known-tokens', positions: [token], errorCode: 'catalog-coverage' }; } };
+  const configuredChain = { ...baseChain, rpcUrl: 'https://rpc.synthetic.invalid' };
+  const adapter = createEvmAdapter({ chains: [configuredChain], rpc: rpcPort(method => method === 'eth_chainId' ? '0x2105' : '0x1'), tokenDiscovery: catalog });
+  const result = await adapter.scan(wallet('evm', evmAddress, { autoScanCommonChains: true, chainIds: [] }), { now: 1 });
+  assert.equal(result.status, 'partial');
+  assert.equal(result.errorCode, 'catalog-coverage');
+  assert.equal(result.positions.find(item => item.assetName === 'Catalog Token')?.baseUnits, '42');
+  assert.deepEqual(observed, [[8453]]);
+  assert.equal(positionFromDraft('wallet', token, 1, 'position').assetName, 'Catalog Token');
+
+  const completeHttp = httpPort({ status: '1', result: [{ TokenAddress: token.assetId, TokenSymbol: 'IDX', TokenDivisor: 6, TokenQuantity: '41' }] });
+  const complete = await createEvmAdapter({ chains: [configuredChain], rpc: rpcPort(method => method === 'eth_chainId' ? '0x2105' : '0x0'), tokenDiscovery: catalog, erc20: { endpoint: 'https://api.etherscan.io/v2/api', keyId: 'ref_evm.erc20_synthetic' } }).scan(wallet('evm', evmAddress, { autoScanCommonChains: false, chainIds: [8453] }), { now: 1, http: completeHttp, secrets: secretStore() });
+  assert.equal(complete.status, 'ok');
+  assert.equal(complete.errorCode, null);
+  assert.equal(complete.positions.find(item => item.assetId === token.assetId)?.symbol, 'CAT');
+
+  const catalogFailure = { scan: async () => ({ family: 'evm', providerId: 'evm.catalog', status: 'error', capability: 'token-discovery-unavailable', positions: [], errorCode: 'network' }) };
+  const unavailable = await createEvmAdapter({ chains: [configuredChain], rpc: rpcPort(method => method === 'eth_chainId' ? '0x2105' : '0x0'), tokenDiscovery: catalogFailure }).scan(wallet('evm', evmAddress, { autoScanCommonChains: true, chainIds: [] }), { now: 1 });
+  assert.equal(unavailable.errorCode, 'network');
+});
+
+test('token result merging covers complete, partial and unavailable provider combinations', () => {
+  const draft = { family: 'evm', chainId: null, assetKind: 'fungible', assetId: 'TOKEN', symbol: 'TOK', baseUnits: '1', decimals: 0 };
+  const scan = (status, positions = [], errorCode = null) => ({ family: 'evm', providerId: 'synthetic', status, capability: status === 'error' ? 'token-discovery-unavailable' : 'known-tokens', positions, errorCode });
+  assert.equal(mergeTokenResults(scan('error'), null).status, 'error');
+  assert.equal(mergeTokenResults(scan('ok', [draft]), scan('error', [], 'catalog-error')).status, 'ok');
+  assert.equal(mergeTokenResults(scan('empty'), scan('partial', [], null)).status, 'empty');
+  assert.equal(mergeTokenResults(scan('error'), scan('ok', [draft], null)).positions[0].assetId, 'TOKEN');
+  assert.equal(mergeTokenResults(scan('error'), scan('empty', [], null)).status, 'partial');
+  const retained = mergeTokenResults(scan('partial', [draft], 'indexed-partial'), scan('error', [], 'catalog-error'));
+  assert.equal(retained.status, 'partial');
+  assert.equal(retained.errorCode, 'indexed-partial');
+  assert.equal(mergeTokenResults(scan('partial', [draft]), scan('error', [], 'catalog-error')).errorCode, 'catalog-error');
+  assert.equal(mergeTokenResults(scan('error'), scan('error', [], 'catalog-error')).status, 'error');
+  assert.equal(mergeTokenResults(scan('unconfigured'), scan('rate-limited', [], 'catalog-limit')).errorCode, 'catalog-limit');
+  assert.equal(mergeTokenResults(scan('unsupported'), scan('aborted', [], 'aborted')).status, 'aborted');
 });
 
 test('Etherscan V2 token discovery parses current-holdings fields and uses Base chain id', async () => {

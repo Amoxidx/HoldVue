@@ -111,6 +111,22 @@ test('CoinGecko retry, cooldown, abort and malformed transport states are struct
   assert.equal((await defaultWait.fetch([asset], { ...httpContext, http: fakeHttp(() => { throw new TransportError('http', 'limited', 429); }) })).statuses[0].status, 'rate-limited');
 });
 
+test('CoinGecko keyless token pricing sends one contract per public request', async () => {
+  const first = `0x${'c'.repeat(40)}`;
+  const second = `0x${'d'.repeat(40)}`;
+  const requests = [];
+  const http = fakeHttp(request => {
+    const url = new URL(request.url);
+    const addresses = url.searchParams.get('contract_addresses').split(',');
+    requests.push(addresses);
+    return { [addresses[0].toLowerCase()]: { eur: 1, usd: 1.2 } };
+  });
+  const assets = [first, second].map((contractAddress, index) => ({ assetId: `base-${index}`, kind: 'fungible', family: 'evm', symbol: 'BASE', platform: 'base', contractAddress }));
+  const result = await createCoinGeckoPriceAdapter({ http, maxBatch: 50, maxConcurrency: 2 }).fetch(assets, { ...httpContext, http });
+  assert.equal(result.quotes.length, 2);
+  assert.deepEqual(requests, [[first], [second]]);
+});
+
 function yahooPayload(currency, current, previous, timestamp = 123, closes = []) {
   return { chart: { result: [{ meta: { currency, regularMarketPrice: current, chartPreviousClose: previous, regularMarketTime: timestamp }, indicators: { quote: [{ close: closes }] } }] } };
 }

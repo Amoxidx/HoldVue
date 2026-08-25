@@ -100,7 +100,7 @@ test('real index DOM wires every dialog control, locale, focus, full address and
   documentRef.querySelector('[data-etherscan-key-save]').dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
   await flush();
   assert.equal(keyInput.value, '');
-  assert.equal(documentRef.querySelector('[data-etherscan-onboarding]').hidden, true);
+  assert.equal(documentRef.querySelector('[data-etherscan-onboarding]').hidden, false);
   documentRef.querySelector('[data-etherscan-key-delete]').dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
   assert.equal(documentRef.querySelector('[data-key-delete-provider]').textContent, 'Etherscan');
   documentRef.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));

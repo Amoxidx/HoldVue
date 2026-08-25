@@ -50,11 +50,15 @@ fresh install makes no network request. Adding a wallet is explicit onboarding
 and automatically enables only that wallet family's provider. Bitcoin,
 Solana, and Cardano can then use their credential-free official defaults. EVM
 uses a built-in public RPC or a configured override for native balances. A free
-Etherscan key enables bounded ERC-20 discovery, subject to chain/tier limits.
+CoinGecko's keyless contract catalog enables bounded ERC-20 candidate discovery;
+quantities and decimals are then verified directly through EVM JSON-RPC. An
+optional Etherscan key can expand indexer coverage, subject to chain/tier limits.
+Base single-contract recovery uses Base's official `https://mainnet.base.org`
+RPC before the secondary public fallback; no Blockscout balance index is used.
 The provider toggle remains available for pausing or
 re-enabling that family.
 
-For the Etherscan adapter, the settings surface accepts an optional free key in a
+For the Etherscan adapter, the settings surface accepts an optional tier-appropriate key in a
 password field. Main IPC encrypts it with Electron `safeStorage` into a
 separate restrictive ciphertext file and stores only an internally generated
 `ref_evm.erc20_...` reference bound to that provider. The secret value never
@@ -83,11 +87,11 @@ per-chain `errorCode: 'aborted'` result without starting RPC work.
 | Capability | Status | Boundary |
 | --- | --- | --- |
 | EVM native balance | implemented keylessly through built-in public RPCs or user overrides | no provider key required; chain IDs/statuses stay explicit |
-| EVM known-token discovery | implemented/configured through Etherscan V2 current-holdings or bounded free fallback | `tokentx` discovery + `tokenbalance`; provider tier/PRO/rate limits/caps are explicit; no completeness claim |
+| EVM known-token discovery | implemented keylessly through the CoinGecko contract catalog plus direct on-chain `balanceOf`/`decimals`; optionally expanded through Etherscan V2 | positive contracts are cached for minute refreshes; Etherscan tier/PRO/rate limits/caps are explicit; no completeness claim |
 | Bitcoin address balance | implemented/configured through mempool.space | confirmed and mempool deltas are exact; xpub/ypub/zpub/tpub/upub/vpub unsupported |
 | Solana native + fungible token accounts | implemented/configured through JSON-RPC | SPL and Token-2022 are read with raw amounts; NFT-like/uncertain rows are filtered |
 | Cardano native + fungible assets | implemented/configured through Koios | strict response/fungibility checks; Blockfrost is not required |
-| Crypto market prices | implemented/configured through CoinGecko keyless routes | supported mainnet native/known contracts only; testnet/devnet/unsupported platforms remain unpriced; no provider key or AI/LLM-token dependency |
+| Crypto market prices | implemented/configured through CoinGecko keyless routes | supported mainnet native/known contracts only; public token-price requests contain one contract each; testnet/devnet/unsupported platforms remain unpriced; no provider key or AI/LLM-token dependency |
 | Stock/ETF market prices | implemented keylessly through Yahoo Finance chart data, with optional FMP fallback | strict symbol/currency/FX validation; missing or limited quotes remain partial; no price inference |
 | Instrument search | implemented through the local catalog and keyless Yahoo Finance search; optionally expanded with FMP | remote candidates are type-filtered and resolved by exact provider identity before persistence |
 | NFTs | not supported | no state or scanner type |
@@ -132,6 +136,7 @@ The implementation follows the primary protocol/provider documentation below:
 - [Etherscan V2 `addresstokenbalance` current holdings](https://docs.etherscan.io/api-reference/endpoint/addresstokenbalance)
 - [Etherscan rate limits](https://docs.etherscan.io/resources/rate-limits)
 - [Etherscan common errors](https://docs.etherscan.io/resources/common-error-messages)
+- [Etherscan supported chains and Free-Tier availability](https://docs.etherscan.io/supported-chains)
 - [ERC-55 mixed-case EVM checksums](https://eips.ethereum.org/EIPS/eip-55)
 - [Bitcoin BIP-32 extended public keys](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
 - [Bitcoin BIP-173 Bech32](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki)
@@ -144,6 +149,7 @@ The implementation follows the primary protocol/provider documentation below:
 - [Cardano CIP-0005 common Bech32 prefixes](https://cips.cardano.org/cip/CIP-0005)
 - [Cardano CIP-19 address encoding](https://cips.cardano.org/cip/CIP-19)
 - [CoinGecko keyless public API](https://docs.coingecko.com/docs/keyless-public-api)
+- [CoinGecko coin list with platform contracts](https://docs.coingecko.com/reference/coins-list)
 - [CoinGecko simple price](https://docs.coingecko.com/reference/simple-price)
 - [CoinGecko token price by contract](https://docs.coingecko.com/reference/simple-token-price)
 - [FMP stable batch quote](https://site.financialmodelingprep.com/developer/docs/stable/batch-quote)
@@ -171,8 +177,9 @@ math and valuation use BigInt, never binary floating-point holdings.
 CoinGecko requests `vs_currencies=eur,usd`, `include_24hr_change=true`, and
 `include_last_updated_at=true`. Native CoinGecko IDs can be shared by multiple
 chain-qualified assets without merging those assets; each receives the same
-validated quote. Contract requests are grouped by asset platform and bounded
-in batches. A 429 or suitable 5xx gets one bounded retry and then a structured
+validated quote. Contract requests are grouped by asset platform and sent one
+contract at a time to respect the current keyless limit, with bounded
+concurrency. A 429 or suitable 5xx gets one bounded retry and then a structured
 provider status/cooldown; aborts stop the request or backoff. No API key is
 sent.
 
