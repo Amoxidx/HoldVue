@@ -3,7 +3,7 @@ import test from 'node:test';
 import {
   COINGECKO_PROVIDER_ID, COINGECKO_SIMPLE_PRICE_URL, COINGECKO_TOKEN_PRICE_URL, FMP_BATCH_QUOTE_URL, FMP_FOREX_QUOTE_URL, YAHOO_CHART_URL, YAHOO_QUOTES_PROVIDER_ID,
   assetIdentityForInstrument, assetIdentityForPosition, createCoinGeckoPriceAdapter, createFmpQuoteAdapter, createPricingCoordinator, createYahooQuoteAdapter, providerQuoteSymbol, yahooQuoteSymbol,
-  decimalToScaled, mergePriceState, scaledToDecimal, updateHistory, valueAssets
+  decimalToScaled, mergePriceState, roundsToZeroInBothCurrencies, scaledToDecimal, updateHistory, valueAssets
 } from '../src/shared/pricing.ts';
 import { canonicalEvmNativeAssetId, canonicalizePersistedAssetId, knownEvmNativeCoinId } from '../src/shared/asset-identity.ts';
 import { createEmptyPortfolioState, parsePortfolioState, PRICE_SCALE } from '../src/shared/state.ts';
@@ -48,6 +48,11 @@ test('fixed-point decimals reject unsafe values and round ties deterministically
   assert.equal(scaledToDecimal('-1'), '-0.000000000001');
   assert.equal(scaledToDecimal('-12', 0), '-12');
   assert.equal(scaledToDecimal('0'), '0');
+  assert.equal(roundsToZeroInBothCurrencies('0', '4999999999'), true);
+  assert.equal(roundsToZeroInBothCurrencies('5000000000', '1'), false);
+  assert.equal(roundsToZeroInBothCurrencies('1', '5000000000'), false);
+  assert.equal(roundsToZeroInBothCurrencies(null, '1'), false);
+  assert.equal(roundsToZeroInBothCurrencies('1', null), false);
 });
 
 test('asset identities stack canonical native coins while preserving chain-specific tokens and unsupported assets', () => {
@@ -402,7 +407,7 @@ test('pricing coordinator handles network fallbacks, duplicate quantities, skipp
   const provider = { id: COINGECKO_PROVIDER_ID, async fetch(assets, context) { calls++; return { providerId: COINGECKO_PROVIDER_ID, quotes: assets.map(asset => quote(asset.assetId)), statuses: assets.map(asset => ({ assetId: asset.assetId, providerId: COINGECKO_PROVIDER_ID, status: 'ok', errorCode: null, lastGoodFetchedAt: context.now })), partial: false }; } };
   const skipped = { id: 'unrelated', async fetch() { throw new Error('should be skipped'); } };
   const run = await createPricingCoordinator({ providers: [provider, skipped], now: () => 5 }).run(state, { http: fakeHttp(() => ({})) });
-  assert.equal(calls, 1); assert.equal(run.valuation.valuedAssets, 4);
+  assert.equal(calls, 1); assert.equal(run.valuation.valuedAssets, 3); assert.equal(run.valuation.assets.some(asset => asset.assetId.includes('bitcoin')), true);
   const failing = { id: COINGECKO_PROVIDER_ID, async fetch() { throw new TransportError('timeout', 'timeout'); } };
   const failed = await createPricingCoordinator({ providers: [failing], now: () => 5 }).run(state, { http: fakeHttp(() => ({})) });
   assert.equal(failed.results.length, 1);
@@ -465,6 +470,9 @@ test('pricing totals and portfolio history exclude hidden or quarantined assets 
   assert.equal(networkRun.valuation.totalAssets, 1);
   const orphanRun = await createPricingCoordinator({ providers: [provider], now: () => 13 }).run({ ...spamState, positions: [{ ...hidden, walletId: 'missing' }] }, { http: fakeHttp(() => ({})) });
   assert.equal(orphanRun.valuation.totalAssets, 0);
+  const dust = nativePosition({ id: 'dust', walletId: 'w', assetId: 'native:dust', symbol: 'DUST', baseUnits: '1', quantity: '0.000000000000000001' });
+  const dustRun = await createPricingCoordinator({ providers: [provider], now: () => 14 }).run({ ...base, wallets: [wallet], positions: [dust] }, { http: fakeHttp(() => ({})) });
+  assert.equal(dustRun.valuation.totalAssets, 0); assert.equal(dustRun.valuation.totalEurScaled, null);
 });
 
 test('schema v5 price state migration is strict, bounded and deterministic', () => {

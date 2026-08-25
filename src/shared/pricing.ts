@@ -37,6 +37,7 @@ function portIdentity(value: object): number { const existing = portIds.get(valu
 
 const MAX_DECIMAL_DIGITS = 36;
 const MAX_INTEGER_DIGITS = 30;
+const HALF_CENT_SCALED = 5_000_000_000n;
 const signedDecimalPattern = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/;
 const decimalPattern = /^(?:0|[1-9]\d*)(?:\.\d+)?$/;
 
@@ -87,6 +88,10 @@ export function scaledToDecimal(value: string, scale: number = PRICE_SCALE): str
   const whole = padded.slice(0, -scale);
   const fraction = padded.slice(-scale).replace(/0+$/, '');
   return `${negative ? '-' : ''}${whole}${fraction ? `.${fraction}` : ''}`;
+}
+
+export function roundsToZeroInBothCurrencies(valueEurScaled: string | null, valueUsdScaled: string | null): boolean {
+  return valueEurScaled !== null && valueUsdScaled !== null && BigInt(valueEurScaled) < HALF_CENT_SCALED && BigInt(valueUsdScaled) < HALF_CENT_SCALED;
 }
 
 function positiveScaled(value: unknown): string | null {
@@ -447,7 +452,10 @@ export function createPricingCoordinator(dependencies: PricingCoordinatorDepende
           const allQuotes = providerResults.flatMap(result => result.quotes); const quoteMap = new Map(allQuotes.map(item => [item.assetId, item]));
           for (const item of current.quotes) if (!quoteMap.has(item.assetId)) quoteMap.set(item.assetId, item);
           const included = includedAssetIds(state, uniqueAssets, spamAssetIds);
-          const valuation = valueAssets(quantityInputs(state, uniqueAssets).map(input => ({ ...input, quote: quoteMap.get(input.assetId) })), included);
+          const valuationInputs = quantityInputs(state, uniqueAssets).map(input => ({ ...input, quote: quoteMap.get(input.assetId) }));
+          const initialValuation = valueAssets(valuationInputs, included);
+          const dustAssetIds = new Set(initialValuation.assets.filter(asset => roundsToZeroInBothCurrencies(asset.valueEurScaled, asset.valueUsdScaled)).map(asset => asset.assetId));
+          const valuation = dustAssetIds.size === 0 ? initialValuation : valueAssets(valuationInputs, new Set([...included].filter(assetId => !dustAssetIds.has(assetId))));
           const active = new Set(uniqueAssets.map(asset => asset.assetId));
           const mergedResult: PriceProviderResult = {
             providerId: 'holdvue.pricing',

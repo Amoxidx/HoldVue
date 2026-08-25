@@ -62,9 +62,9 @@ test('portfolio keeps fallback networks, exact signed day math, and status bound
   assert.equal(fallback.assets.find(item => item.symbol === 'SOLS')?.accounts[0].chain, 'mainnet-beta');
 
   const assetId = 'asset:evm:1:native:native:neg';
-  const negative = buildPortfolioViewModel(baseState({ positions: [position('neg', 'w1', { assetId: 'native:neg', symbol: 'NEG', baseUnits: '1', quantity: '0.000000000000000001' })], prices: { quotes: [quote(assetId)], statuses: [], valuations: [{ ...valuation(assetId, '100'), dayChangeEurScaled: '-100', dayChangeUsdScaled: '-100' }], history: [], totalEurScaled: null, totalUsdScaled: null, complete: false, valuedAssets: 0, totalAssets: 1, dayChangeEurScaled: null, dayChangeUsdScaled: null, dayChangePercentScaled: null } }));
+  const negative = buildPortfolioViewModel(baseState({ positions: [position('neg', 'w1', { assetId: 'native:neg', symbol: 'NEG', baseUnits: '1', quantity: '0.000000000000000001' })], prices: { quotes: [quote(assetId)], statuses: [], valuations: [{ ...valuation(assetId, '100000000000'), dayChangeEurScaled: '-100000000000', dayChangeUsdScaled: '-100000000000' }], history: [], totalEurScaled: null, totalUsdScaled: null, complete: false, valuedAssets: 0, totalAssets: 1, dayChangeEurScaled: null, dayChangeUsdScaled: null, dayChangePercentScaled: null } }));
   assert.equal(negative.summary.dayChangePercentScaled, '-500000');
-  const zeroPrevious = buildPortfolioViewModel(baseState({ positions: [position('zero-previous', 'w1', { assetId: 'native:zero-previous', symbol: 'ZERO', baseUnits: '1', quantity: '0.000000000000000001' })], prices: { quotes: [quote('asset:evm:1:native:native:zero-previous')], statuses: [], valuations: [{ ...valuation('asset:evm:1:native:native:zero-previous', '100'), dayChangeEurScaled: '100', dayChangeUsdScaled: '100' }], history: [], totalEurScaled: null, totalUsdScaled: null, complete: false, valuedAssets: 0, totalAssets: 1, dayChangeEurScaled: null, dayChangeUsdScaled: null, dayChangePercentScaled: null } }));
+  const zeroPrevious = buildPortfolioViewModel(baseState({ positions: [position('zero-previous', 'w1', { assetId: 'native:zero-previous', symbol: 'ZERO', baseUnits: '1', quantity: '0.000000000000000001' })], prices: { quotes: [quote('asset:evm:1:native:native:zero-previous')], statuses: [], valuations: [{ ...valuation('asset:evm:1:native:native:zero-previous', '100000000000'), dayChangeEurScaled: '100000000000', dayChangeUsdScaled: '100000000000' }], history: [], totalEurScaled: null, totalUsdScaled: null, complete: false, valuedAssets: 0, totalAssets: 1, dayChangeEurScaled: null, dayChangeUsdScaled: null, dayChangePercentScaled: null } }));
   assert.equal(zeroPrevious.summary.dayChangePercentScaled, null);
 
   const duplicateSpam = [position('spam-a', 'w1', { assetKind: 'fungible', assetId: `0x${'d'.repeat(40)}`, symbol: 'DUST', baseUnits: '1', quantity: '0.000000000000000001', spam: null }), position('spam-b', 'w2', { assetKind: 'fungible', assetId: `0x${'d'.repeat(40)}`, symbol: 'DUST', baseUnits: '1', quantity: '0.000000000000000001', spam: { riskFlags: ['suspicious-name'], reasons: ['synthetic spam'], hiddenByDefault: true } })];
@@ -81,6 +81,22 @@ test('portfolio ignores orphan and zero inputs while retaining deterministic edg
   const model = buildPortfolioViewModel(state);
   assert.equal(model.assets.some(item => item.symbol === 'FLAT'), true);
   assert.equal(model.assets.some(item => item.symbol === 'orphan'), false);
+});
+
+test('portfolio automatically hides valued dust that rounds to zero while retaining unknown and one-cent assets', () => {
+  const dustId = 'asset:evm:1:native:native:dust';
+  const thresholdId = 'asset:evm:1:native:native:threshold';
+  const unknownId = 'asset:evm:1:native:native:unknown-price';
+  const positions = [
+    position('dust', 'w1', { assetId: 'native:dust', symbol: 'DUST', baseUnits: '1', quantity: '0.000000000000000001' }),
+    position('threshold', 'w1', { assetId: 'native:threshold', symbol: 'CENT', baseUnits: '1', quantity: '0.000000000000000001' }),
+    position('unknown-price', 'w1', { assetId: 'native:unknown-price', symbol: 'UNKNOWN', baseUnits: '1', quantity: '0.000000000000000001' })
+  ];
+  const prices = { quotes: [quote(dustId), quote(thresholdId)], statuses: [], valuations: [{ ...valuation(dustId, '4999999999'), valueUsdScaled: '1' }, { ...valuation(thresholdId, '5000000000'), valueUsdScaled: '1' }, { ...valuation(unknownId, null), valueUsdScaled: null, status: 'unpriced' }], history: [], totalEurScaled: null, totalUsdScaled: null, complete: false, valuedAssets: 0, totalAssets: 3, dayChangeEurScaled: null, dayChangeUsdScaled: null, dayChangePercentScaled: null };
+  const model = buildPortfolioViewModel(baseState({ positions, prices }));
+  assert.deepEqual(model.assets.map(asset => asset.symbol), ['CENT', 'UNKNOWN']);
+  assert.equal(model.hiddenAssets.some(asset => asset.symbol === 'DUST'), false);
+  assert.equal(model.summary.totalAssets, 2);
 });
 
 test('portfolio sorting, ranges and exact formatting are deterministic', () => {

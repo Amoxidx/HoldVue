@@ -1,6 +1,6 @@
 import type { Currency } from './ports.ts';
 import type { Holding, Instrument, PortfolioState, Position, PriceQuote, Valuation, WalletSource } from './state.ts';
-import { assetIdentityForInstrument, assetIdentityForPosition, scaledToDecimal } from './pricing.ts';
+import { assetIdentityForInstrument, assetIdentityForPosition, roundsToZeroInBothCurrencies, scaledToDecimal } from './pricing.ts';
 
 export type PortfolioSort = 'size' | 'gainers' | 'losers';
 export type PortfolioRange = '1D' | '7D' | '1M' | '1Y' | 'MAX';
@@ -162,10 +162,12 @@ export function buildPortfolioViewModel(state: PortfolioState): PortfolioViewMod
   const quotes = quoteMap(state); const valuations = valuationMap(state); const statuses = statusMap(state);
   const spamHiddenIds = new Set([...groups.values()].filter(group => group.spamHiddenByDefault).map(group => group.assetId));
   const allAssets = [...groups.values()].map(group => toAssetView(group, quotes, valuations, statuses, state.settings.currency));
+  const dustIds = new Set(state.prices.valuations.filter(valuation => roundsToZeroInBothCurrencies(valuation.valueEurScaled, valuation.valueUsdScaled)).map(valuation => valuation.assetId));
+  const displayAssets = allAssets.filter(asset => !dustIds.has(asset.assetId));
   const hiddenIds = new Set(state.settings.hiddenAssetIds);
   const quarantined = (asset: PortfolioAssetView): boolean => asset.kind === 'wallet' && spamHiddenIds.has(asset.assetId) && state.settings.spamFilterEnabled && !state.settings.showHiddenSpamAssets;
-  const hiddenAssets = allAssets.filter(asset => hiddenIds.has(asset.assetId) || quarantined(asset)).map(asset => ({ ...asset, status: 'hidden' as const }));
-  const assets = allAssets.filter(asset => !hiddenIds.has(asset.assetId) && !quarantined(asset));
+  const hiddenAssets = displayAssets.filter(asset => hiddenIds.has(asset.assetId) || quarantined(asset)).map(asset => ({ ...asset, status: 'hidden' as const }));
+  const assets = displayAssets.filter(asset => !hiddenIds.has(asset.assetId) && !quarantined(asset));
   const excludedSpam = new Set(state.settings.spamFilterEnabled ? [...groups.values()].filter(group => group.spamHiddenByDefault).map(group => group.assetId) : []);
   const summaryAssets = assets.filter(asset => !excludedSpam.has(asset.assetId));
   const valued = summaryAssets.filter(asset => asset.valueScaled !== null);
