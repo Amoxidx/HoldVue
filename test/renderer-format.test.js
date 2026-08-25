@@ -29,6 +29,7 @@ test('renderer status tones distinguish progress, warnings, neutral states and f
   assert.equal(statusToneForMessage('status.saved'), 'ready');
   assert.equal(statusToneForMessage('status.syncing'), 'busy');
   assert.equal(statusToneForMessage('status.syncPartial'), 'warning');
+  assert.equal(statusToneForMessage('status.syncErc20Key'), 'warning');
   assert.equal(statusToneForMessage('status.syncRate'), 'warning');
   assert.equal(statusToneForMessage('status.syncEmpty'), 'neutral');
   assert.equal(statusToneForMessage('status.syncReady'), 'neutral');

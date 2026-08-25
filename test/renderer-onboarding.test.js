@@ -39,7 +39,7 @@ function stateWithWallets() {
     syntheticWallet('bitcoin', 'btc-synthetic', 'btc-synthetic', { network: 'mainnet', addressType: 'address' }),
     syntheticWallet('solana', 'sol-synthetic', 'sol-synthetic', { network: 'devnet' }),
     syntheticWallet('cardano', 'ada-synthetic', 'ada-synthetic', { network: 'testnet' })
-  ] };
+  ], sync: { schemaVersion: 1, statuses: [{ walletId: 'evm-synthetic', family: 'evm', providerId: 'evm', status: 'partial', lastAttemptAt: 1, lastSuccessAt: 1, errorCode: 'unconfigured' }] } };
 }
 
 test('renderer wallet onboarding, management, settings, copy, confirmation, keyboard and minute refresh are behavioral', async () => {

@@ -10,7 +10,6 @@
   "scripts": {
     "build": "node scripts/clean-dist.mjs && tsc -p tsconfig.json && node scripts/copy-renderer.mjs",
     "icons": "node scripts/create-icons.mjs",
-    "preview": "npm run build && electron scripts/preview.mjs",
     "audit:package": "node scripts/audit-package.mjs",
     "smoke:package": "node scripts/smoke-package.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",

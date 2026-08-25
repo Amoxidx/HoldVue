@@ -106,21 +106,9 @@ allowlist in CI; cross-building Windows on macOS is intentionally left to the
 Windows runner. Run the source-tree gate first, then package, then this
 artifact audit.
 
-For visual development, `test/fixtures/portfolio-preview.json` is a clearly
-synthetic, dev-only manual-ETF state with local price and portfolio history.
-Run `npm run preview` from the repository root to open it in a development-only
-Electron window; expand the synthetic asset and move over its chart to smoke
-test the detail view, tooltip, and keyboard chart access. The preview preload
-is a local fake API, never scans a wallet or calls a provider. The fixture and
-preview script are excluded from packaged runtime files and are never loaded
-as the default portfolio. For a deterministic visual artifact, pass
-`HOLDVUE_PREVIEW_SCREENSHOT=/tmp/holdvue-preview.png npm run preview` (or pass
-`--screenshot /tmp/holdvue-preview.png` to `electron scripts/preview.mjs`); the
-development window waits for rendering, writes the PNG, and exits. If the local
-macOS session has no usable WindowServer, the Electron command fails clearly
-instead of producing an empty image. The repository's DOM and chart tests cover
-the populated synthetic fixture deterministically; manual PNG capture requires
-a macOS session with a usable WindowServer.
+The repository's DOM and chart tests cover chart ranges, exact tooltips,
+keyboard interaction, focus restoration, dialogs, and responsive layout. Test
+fixtures are never included in application packages.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
 [docs/PROVIDERS.md](docs/PROVIDERS.md) for the boundaries used by future
