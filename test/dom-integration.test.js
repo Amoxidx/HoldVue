@@ -307,7 +307,7 @@ test('real index DOM wires every dialog control, locale, focus, full address and
   documentRef.querySelector('[data-wallet-action="delete"]').dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
   documentRef.querySelector('[data-delete-confirm]').dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
   await flush();
-  assert.equal(documentRef.activeElement, add);
+  assert.equal(documentRef.activeElement, documentRef.querySelector('[data-settings-close]'));
 
   documentRef.querySelector('[data-setting-currency]').value = 'USD';
   documentRef.querySelector('[data-setting-currency]').dispatchEvent(new dom.window.Event('change', { bubbles: true }));
