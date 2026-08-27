@@ -126,10 +126,18 @@ test('real index DOM wires every dialog control, locale, focus, full address and
   assert.equal(documentRef.querySelector('[data-settings-advanced]').open, false);
   assert.match(documentRef.querySelector('[data-settings-advanced] summary').textContent, /Erweiterte/);
   const refreshButton = documentRef.querySelector('[data-refresh]');
+  let refreshCalls = 0;
+  let finishRefresh;
+  const immediateRefresh = api.refresh;
+  api.refresh = async () => { refreshCalls++; await new Promise(resolve => { finishRefresh = resolve; }); return success(state); };
+  refreshButton.dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
   refreshButton.dispatchEvent(new dom.window.Event('click', { bubbles: true, cancelable: true }));
   assert.equal(refreshButton.disabled, true); assert.equal(refreshButton.getAttribute('aria-busy'), 'true');
+  assert.equal(refreshCalls, 1);
   assert.equal(documentRef.querySelector('[data-status]').getAttribute('data-state'), 'busy');
+  finishRefresh();
   await flush();
+  api.refresh = immediateRefresh;
   assert.equal(refreshButton.disabled, false); assert.equal(refreshButton.getAttribute('aria-busy'), 'false');
   assert.equal(documentRef.querySelector('[data-status]').getAttribute('data-state'), 'neutral');
   assert.equal(documentRef.querySelectorAll('[data-wallet-cancel]').length, 1);

@@ -26,6 +26,7 @@ interface CachedChain {
   readonly tokens: readonly CatalogToken[];
   readonly positions: readonly PositionDraft[];
   readonly retryOffset: number;
+  readonly remainingCatalogTokens: number;
 }
 
 export interface EvmTokenDiscovery {
@@ -46,6 +47,7 @@ export interface CoinGeckoEvmTokenDiscoveryOptions {
   readonly rpcDelayMs?: number;
   readonly rpcAttempts?: number;
   readonly rpcTimeoutMs?: number;
+  readonly catalogScanLimitPerChain?: number;
 }
 
 function record(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null && !Array.isArray(value); }
@@ -112,6 +114,7 @@ export function createCoinGeckoEvmTokenDiscovery(options: CoinGeckoEvmTokenDisco
   const rpcDelayMs = Number.isSafeInteger(options.rpcDelayMs) && options.rpcDelayMs! >= 0 && options.rpcDelayMs! <= 5_000 ? options.rpcDelayMs! : 0;
   const rpcAttempts = positiveOption(options.rpcAttempts, 1, 3);
   const rpcTimeoutMs = positiveOption(options.rpcTimeoutMs, 10_000, 30_000);
+  const catalogScanLimitPerChain = positiveOption(options.catalogScanLimitPerChain, 5_000, 10_000);
   const wait = options.wait ?? (async (milliseconds: number, signal?: AbortSignal) => {
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(resolve, milliseconds);
@@ -240,8 +243,17 @@ export function createCoinGeckoEvmTokenDiscovery(options: CoinGeckoEvmTokenDisco
           const prior = cache.get(key);
           const fullScan = prior === undefined || now() - prior.fullScanAt >= fullScanTtlMs;
           const chainTokens = allTokens.filter(token => token.chainId === chain.chainId);
-          const rotation = fullScan ? prior?.retryOffset ?? 0 : 0;
-          const tokens = fullScan ? rotation > 0 ? [...chainTokens.slice(rotation), ...chainTokens.slice(0, rotation)] : chainTokens : prior.tokens;
+          const knownContracts = new Set([
+            ...(prior?.tokens.map(token => token.contract) ?? []),
+            ...(context.positions ?? []).filter(position => position.family === 'evm' && position.assetKind === 'fungible' && position.chainId === chain.chainId && /^0x[0-9a-fA-F]{40}$/.test(position.assetId)).map(position => position.assetId.toLowerCase())
+          ]);
+          const priorityTokens = chainTokens.filter(token => knownContracts.has(token.contract));
+          const discoveryTokens = chainTokens.filter(token => !knownContracts.has(token.contract));
+          const rotation = fullScan && discoveryTokens.length > 0 ? (prior?.retryOffset ?? 0) % discoveryTokens.length : 0;
+          const rotated = rotation > 0 ? [...discoveryTokens.slice(rotation), ...discoveryTokens.slice(0, rotation)] : discoveryTokens;
+          const remainingBefore = fullScan ? prior && prior.remainingCatalogTokens > 0 ? Math.min(prior.remainingCatalogTokens, discoveryTokens.length) : discoveryTokens.length : 0;
+          const discoverySlice = fullScan ? rotated.slice(0, Math.min(catalogScanLimitPerChain, remainingBefore)) : [];
+          const tokens = [...priorityTokens, ...discoverySlice];
           const current = await balancesFor(chain, tokens, wallet.address, context.signal);
           hadError ||= current.hadError;
           const positionMap = new Map((current.hadError ? [...(prior?.positions ?? []), ...current.positions] : current.positions).map(item => [item.assetId.toLowerCase(), item]));
@@ -249,9 +261,14 @@ export function createCoinGeckoEvmTokenDiscovery(options: CoinGeckoEvmTokenDisco
           const heldContracts = new Set(currentPositions.map(item => item.assetId.toLowerCase()));
           const tokenMap = new Map([...(current.hadError ? prior?.tokens ?? [] : []), ...tokens.filter(token => heldContracts.has(token.contract))].map(token => [token.contract, token]));
           const heldTokens = [...tokenMap.values()];
-          const fullScanAt = fullScan && !current.hadError ? now() : prior?.fullScanAt ?? -fullScanTtlMs;
-          const retryOffset = current.hadError && chainTokens.length > 0 ? (rotation + current.retryOffset!) % chainTokens.length : 0;
-          cache.set(key, { fullScanAt, tokens: heldTokens, positions: currentPositions, retryOffset });
+          const checkedDiscoveryTokens = current.hadError ? Math.min(discoverySlice.length, Math.max(0, current.retryOffset! - priorityTokens.length)) : discoverySlice.length;
+          const fullCatalogCovered = fullScan && !current.hadError && checkedDiscoveryTokens === remainingBefore;
+          const fullScanAt = fullScan && fullCatalogCovered && !current.hadError ? now() : prior?.fullScanAt ?? -fullScanTtlMs;
+          const retryOffset = !fullScan || discoveryTokens.length === 0 || fullCatalogCovered && !current.hadError
+            ? 0
+            : (rotation + checkedDiscoveryTokens) % discoveryTokens.length;
+          const remainingCatalogTokens = !fullScan || fullCatalogCovered ? 0 : Math.max(0, remainingBefore - checkedDiscoveryTokens);
+          cache.set(key, { fullScanAt, tokens: heldTokens, positions: currentPositions, retryOffset, remainingCatalogTokens });
           positions.push(...currentPositions);
         }
         return { family: 'evm', providerId: 'evm.catalog', status: 'partial', capability: 'known-tokens', positions, errorCode: hadError ? 'catalog-rpc-partial' : 'catalog-coverage' };

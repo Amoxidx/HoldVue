@@ -446,7 +446,12 @@ test('wallet mutations interrupt a slow background refresh instead of waiting be
   const f = runtimeFixture();
   let observedSignal;
   let release;
-  const sync = { coordinator: { async run(state, context) {
+  const runs = [];
+  const sync = { coordinator: { async run(state, context, runOptions) {
+    runs.push({ wallets: state.wallets.map(wallet => wallet.id), runOptions });
+    if (runs.length > 1) {
+      return { state: { ...state, sync: { schemaVersion: 1, statuses: state.wallets.map(wallet => ({ walletId: wallet.id, family: wallet.family, providerId: 'evm', status: 'empty', lastAttemptAt: 12, lastSuccessAt: 12, errorCode: null })) } }, results: [] };
+    }
     observedSignal = context.signal;
     await new Promise(resolve => {
       release = resolve;
@@ -459,11 +464,18 @@ test('wallet mutations interrupt a slow background refresh instead of waiting be
   await composition.start();
   for (let attempt = 0; observedSignal === undefined && attempt < 20; attempt++) await Promise.resolve();
   assert.equal(observedSignal.aborted, false);
-  const added = await f.handlers.get('holdvue:add-wallet')({}, { label: 'Priority', family: 'evm', address: `0x${'6'.repeat(40)}`, options: { autoScanCommonChains: true, chainIds: [] } });
+  const addPromise = f.handlers.get('holdvue:add-wallet')({}, { label: 'Priority', family: 'evm', address: `0x${'6'.repeat(40)}`, options: { autoScanCommonChains: true, chainIds: [] } });
+  const forcedRefresh = f.handlers.get('holdvue:refresh')();
+  const added = await addPromise;
   assert.equal(observedSignal.aborted, true);
   assert.equal(added.ok, true);
   assert.equal(added.value.wallets[0].id, 'priority-wallet');
   assert.equal(f.storage.state.wallets[0].label, 'Priority');
+  const refreshed = await forcedRefresh;
+  assert.equal(refreshed.ok, true);
+  assert.deepEqual(runs.map(run => run.wallets), [[], ['priority-wallet']]);
+  assert.equal(runs[1].runOptions.scanWallets, true);
+  assert.equal(refreshed.value.sync.statuses[0].walletId, 'priority-wallet');
   composition.stop();
 });
 

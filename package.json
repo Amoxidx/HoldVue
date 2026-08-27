@@ -1,7 +1,7 @@
 {
   "name": "holdvue",
   "productName": "HoldVue",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "author": "HoldVue contributors",
   "description": "Local-first portfolio observation shell for macOS and Windows",

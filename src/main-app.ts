@@ -104,6 +104,7 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
   let mutationQueue: Promise<void> = Promise.resolve();
   let refreshPromise: Promise<PublicResult<PortfolioState>> | null = null;
   let refreshScansWallets = false;
+  let refreshInterrupted = false;
   let queuedFullRefreshPromise: Promise<PublicResult<PortfolioState>> | null = null;
   let refreshController: AbortController | null = null;
   let searchController: AbortController | null = null;
@@ -165,7 +166,10 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
     return next;
   };
   const enqueueUserMutation = <T>(task: () => Promise<T>): Promise<T> => {
-    refreshController?.abort();
+    if (refreshController) {
+      refreshInterrupted = true;
+      refreshController.abort();
+    }
     return enqueueMutation(task);
   };
   const rejectedMutation = <T>(code: string, message: string): Promise<PublicResult<T>> => enqueueUserMutation(async () => failure(code, message));
@@ -258,13 +262,14 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
   const refresh = (forceWalletScan: boolean): Promise<PublicResult<PortfolioState>> => {
     if (!options.sync) return Promise.resolve(failure('unconfigured', 'No wallet providers are configured.'));
     if (refreshPromise) {
-      if (!forceWalletScan || refreshScansWallets) return refreshPromise;
+      if (!forceWalletScan || (refreshScansWallets && !refreshInterrupted)) return refreshPromise;
       if (queuedFullRefreshPromise) return queuedFullRefreshPromise;
       const queued = refreshPromise.then(() => refresh(true)).finally(() => { queuedFullRefreshPromise = null; });
       queuedFullRefreshPromise = queued;
       return queued;
     }
     refreshScansWallets = forceWalletScan;
+    refreshInterrupted = false;
     const controller = new AbortController();
     refreshController = controller;
     const pending = enqueueMutation(async () => {
@@ -278,7 +283,14 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
       } catch (error) {
         return failure(error instanceof Error && error.message === 'stopped' ? 'aborted' : 'sync-failed', 'Wallet synchronization did not complete.');
       }
-    }).finally(() => { refreshPromise = null; refreshScansWallets = false; refreshController = null; });
+    }).finally(() => {
+      if (refreshController === controller) {
+        refreshPromise = null;
+        refreshScansWallets = false;
+        refreshInterrupted = false;
+        refreshController = null;
+      }
+    });
     refreshPromise = pending;
     return pending;
   };

@@ -82,6 +82,7 @@ export function startMain(load: ElectronLoader = loadRuntimeModule, factory: Com
     concurrency: 4,
     rpcDelayMs: 250,
     rpcTimeoutMs: 8_000,
+    catalogScanLimitPerChain: 250,
     rpcFallbacks: {
       1: ['https://public.1rpc.io/eth'], 10: ['https://public.1rpc.io/op'], 56: ['https://public.1rpc.io/bnb'], 100: ['https://public.1rpc.io/gnosis'], 137: ['https://public.1rpc.io/matic'], 324: ['https://public.1rpc.io/zksync2-era'], 5000: ['https://public.1rpc.io/mantle'], 8453: ['https://mainnet.base.org', 'https://public.1rpc.io/base'], 42161: ['https://public.1rpc.io/arb'], 42220: ['https://public.1rpc.io/celo'], 43114: ['https://public.1rpc.io/avax/c'], 59144: ['https://public.1rpc.io/linea'], 534352: ['https://public.1rpc.io/scroll']
     }

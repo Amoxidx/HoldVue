@@ -67,6 +67,25 @@ test('keyless discovery scans balances on-chain, reads decimals, caches positive
   assert.equal(calls.filter(call => call.url === COINGECKO_TOKEN_CATALOG_URL).length, 2);
 });
 
+test('keyless discovery bounds catalog work, rotates coverage and prioritizes previously known holdings', async () => {
+  const calls = [];
+  const http = { async requestJson(request) { calls.push(request); return responseFor(request, { [contractA]: 42n, [contractB]: 1n }); } };
+  const discovery = createCoinGeckoEvmTokenDiscovery({ http, catalogScanLimitPerChain: 1, batchSize: 1, wait: async () => undefined });
+  const first = await discovery.scan(wallet(), [chain()], { now: 1 });
+  assert.deepEqual(first.positions.map(item => item.symbol), ['AAA']);
+  const second = await discovery.scan(wallet(), [chain()], { now: 2 });
+  assert.deepEqual(second.positions.map(item => item.symbol).sort(), ['AAA', 'BBB']);
+  assert.equal(calls.filter(call => call.url !== COINGECKO_TOKEN_CATALOG_URL && call.body[0].params[0].data.startsWith('0x70a08231')).length, 3);
+
+  const knownFirst = createCoinGeckoEvmTokenDiscovery({ http, catalogScanLimitPerChain: 1, batchSize: 2, wait: async () => undefined });
+  const known = await knownFirst.scan(wallet(), [chain()], { now: 3, positions: [{ schemaVersion: 3, id: 'known', walletId: 'wallet', family: 'evm', chainId: 8453, assetKind: 'fungible', assetId: contractB, symbol: 'BBB', baseUnits: '1', quantity: '0.000000000000000001', confirmedBaseUnits: '1', pendingBaseUnits: '0', decimals: 18, updatedAt: 1, spam: null }] });
+  assert.deepEqual(known.positions.map(item => item.symbol).sort(), ['AAA', 'BBB']);
+
+  const rotating = createCoinGeckoEvmTokenDiscovery({ http: { requestJson: async request => responseFor(request, { [contractA]: 0n, [contractB]: 1n }) }, catalogScanLimitPerChain: 1, wait: async () => undefined });
+  assert.deepEqual((await rotating.scan(wallet(), [chain()], { now: 4 })).positions, []);
+  assert.deepEqual((await rotating.scan(wallet(), [chain()], { now: 5 })).positions.map(item => item.symbol), ['BBB']);
+});
+
 test('discovery handles selection, malformed RPC rows, bad decimals and empty catalogs', async () => {
   const noChain = createCoinGeckoEvmTokenDiscovery({ http: { requestJson: async () => catalog() }, wait: async () => undefined });
   assert.equal((await noChain.scan(wallet(), [chain({ rpcUrl: null })], { now: 1 })).errorCode, 'no-enabled-chain');
@@ -248,7 +267,7 @@ test('discovery resumes a partial full scan at the first failed contract group',
   run = 2;
   clock = 2;
   const resumed = await discovery.scan(wallet(), [chain()], { now: clock });
-  assert.equal(balanceCalls.find(item => item.run === 2).contractAddress, contractB);
+  assert.equal(balanceCalls.some(item => item.run === 2 && item.contractAddress === contractB), true);
   assert.deepEqual(resumed.positions.map(item => item.symbol).sort(), ['AAA', 'BBB']);
 });
 

@@ -40,6 +40,7 @@ export interface AdapterContext {
   readonly rpc?: JsonRpcPort;
   readonly secrets?: SecretStore;
   readonly settings?: Pick<Settings, 'enabledChainIds'>;
+  readonly positions?: readonly Position[];
 }
 
 export interface WalletAdapter {

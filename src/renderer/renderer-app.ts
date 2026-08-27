@@ -201,6 +201,7 @@ export function createRendererController(documentRef: RendererDocument, api: Hol
   const chartDisposers: (() => void)[] = [];
   let resizeObserver: ResizeObserver | null = null;
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+  let refreshTask: Promise<void> | null = null;
 
   const query = (selector: string): RendererElement | null => documentRef.querySelector(selector);
   const queryAll = (selector: string): RendererElement[] => {
@@ -309,8 +310,10 @@ export function createRendererController(documentRef: RendererDocument, api: Hol
     }).join('');
   const renderWalletList = (element: RendererElement | null, wallets: readonly WalletSource[], scope: 'dashboard' | 'settings'): void => {
     if (!element || typeof element.innerHTML !== 'string') return;
-    const focusedWalletId = documentRef.activeElement?.getAttribute?.('data-wallet-id') ?? null;
-    const focusedWalletAction = documentRef.activeElement?.getAttribute?.('data-wallet-action') ?? null;
+    const oldButtons = typeof element.querySelectorAll === 'function' ? Array.from(element.querySelectorAll('[data-wallet-action]') as Iterable<RendererElement>) : [];
+    const focusedButton = oldButtons.find(button => button === documentRef.activeElement && typeof button.getAttribute === 'function');
+    const focusedWalletId = focusedButton ? focusedButton.getAttribute!('data-wallet-id') : null;
+    const focusedWalletAction = focusedButton ? focusedButton.getAttribute!('data-wallet-action') : null;
     element.innerHTML = walletCards(wallets);
     for (const button of typeof element.querySelectorAll === 'function' ? Array.from(element.querySelectorAll('[data-wallet-action]') as Iterable<RendererElement>) : []) {
       const action = button.getAttribute?.('data-wallet-action');
@@ -635,12 +638,20 @@ export function createRendererController(documentRef: RendererDocument, api: Hol
     if (error) { showErrorCode(error.code); showStatus('status.copyUnavailable'); return; }
     showStatus('status.copy');
   };
-  const refresh = async (successStatus?: MessageKey): Promise<void> => {
+  const refresh = (successStatus?: MessageKey): Promise<void> => {
+    if (refreshTask) return refreshTask;
     const control = query('[data-refresh]');
     if (control) { control.disabled = true; control.setAttribute?.('aria-busy', 'true'); }
     showStatus('status.syncing');
-    try { if (await applyMutation(api.refresh(), false)) showStatus(successStatus ?? syncSummary(currentState!)); }
-    finally { if (control) { control.disabled = false; control.setAttribute?.('aria-busy', 'false'); } }
+    const pending = (async (): Promise<void> => {
+      try { if (await applyMutation(api.refresh(), false)) showStatus(successStatus ?? syncSummary(currentState!)); }
+      finally {
+        if (control) { control.disabled = false; control.setAttribute?.('aria-busy', 'false'); }
+        refreshTask = null;
+      }
+    })();
+    refreshTask = pending;
+    return pending;
   };
   const detectionText = (match: AddressMatch): string => `${localized('detection.detected')}: ${match.family.toUpperCase()}${match.network ? ` · ${message(locale(), networkKey(match.network))}` : ''}`;
   const showDetectionState = (text: string, state: 'idle' | 'checking' | 'success' | 'error'): void => {
@@ -761,7 +772,7 @@ export function createRendererController(documentRef: RendererDocument, api: Hol
       const enabled = query('[data-wallet-enabled]')?.checked !== false;
       const input = { label, family, address, enabled, options: formOptions(family) };
       const result = walletDialogMode === 'edit' && editingWalletId ? api.updateWallet(editingWalletId, input) : api.addWallet(input);
-      if (await applyMutation(result)) { setDialogOpen(walletDialog, false); editingWalletId = null; detected = null; void api.refresh().catch(() => undefined); restore(); }
+      if (await applyMutation(result)) { setDialogOpen(walletDialog, false); editingWalletId = null; detected = null; void refresh(); restore(); }
     } finally {
       walletSaving = false;
       if (control) { control.disabled = false; control.setAttribute?.('aria-busy', 'false'); }
