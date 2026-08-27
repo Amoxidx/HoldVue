@@ -127,17 +127,18 @@ test('sync results and reconciled positions keep wallet order despite completion
   assert.deepEqual(run.state.positions.map(position => position.baseUnits), ['1', '2']);
 });
 
-test('every EVM wallet receives the global known-contract set for automatic cross-wallet discovery', async () => {
+test('every EVM wallet receives all globally known contracts for automatic cross-wallet discovery', async () => {
   const initial = state();
   const secondWallet = { ...initial.wallets[0], id: 'wallet-sync-global-2', address: `0x${'2'.repeat(40)}` };
   const known = { ...draft('5'), schemaVersion: 3, id: 'known-global', walletId: 'wallet-sync', assetKind: 'fungible', assetId: `0x${'a'.repeat(40)}`, symbol: 'KNOWN', quantity: '0.000000000000000005', confirmedBaseUnits: '5', pendingBaseUnits: '0', updatedAt: 1, spam: null };
-  const globalState = parsePortfolioState({ ...initial, wallets: [...initial.wallets, secondWallet], positions: [known] });
+  const knownSecond = { ...known, id: 'known-global-second', walletId: secondWallet.id, assetId: `0x${'b'.repeat(40)}`, symbol: 'OTHER', baseUnits: '7', quantity: '0.000000000000000007', confirmedBaseUnits: '7' };
+  const globalState = parsePortfolioState({ ...initial, wallets: [...initial.wallets, secondWallet], positions: [known, knownSecond] });
   const observed = [];
   const globalAdapter = { family: 'evm', providerId: 'evm', async scan(wallet, context) { observed.push([wallet.id, context.positions.map(position => position.assetId)]); return { ...success('1'), positions: [] }; } };
   await createSyncCoordinator({ adapters: [globalAdapter], ids: { next: () => 'unused-global' }, now: () => 3 }).run(globalState, {});
   assert.deepEqual(observed, [
-    ['wallet-sync', [known.assetId]],
-    ['wallet-sync-global-2', [known.assetId]]
+    ['wallet-sync', [known.assetId, knownSecond.assetId]],
+    ['wallet-sync-global-2', [known.assetId, knownSecond.assetId]]
   ]);
 });
 
