@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createRendererController } from '../src/renderer/renderer-app.ts';
 
+const flush = () => new Promise(resolve => setImmediate(resolve));
+
 class FakeElement {
   constructor(documentRef) { this.documentRef = documentRef; this.textContent = ''; this.innerHTML = ''; this.value = ''; this.checked = false; this.hidden = true; this.dataset = {}; this.listeners = new Map(); this.attributes = new Map(); this.children = []; this.open = false; }
   addEventListener(type, callback) { const list = this.listeners.get(type) ?? []; list.push(callback); this.listeners.set(type, list); }
@@ -86,7 +88,7 @@ test('renderer wallet onboarding, management, settings, copy, confirmation, keyb
   await Promise.resolve();
   assert.match(documentRef.elements.get('[data-wallet-detection]').textContent, /EVM/);
   documentRef.elements.get('[data-wallet-form]').dispatch('submit');
-  await Promise.resolve();
+  await flush();
   assert.equal(state.wallets.length, 6);
 
   nextFamily = 'solana';
@@ -96,7 +98,7 @@ test('renderer wallet onboarding, management, settings, copy, confirmation, keyb
   documentRef.elements.get('[data-wallet-address]').dispatch('input');
   await Promise.resolve();
   documentRef.elements.get('[data-wallet-form]').dispatch('submit');
-  await Promise.resolve();
+  await flush();
   assert.equal(state.wallets.at(-1).family, 'solana');
   assert.equal(state.wallets.at(-1).options.network, 'mainnet-beta');
 
@@ -107,7 +109,7 @@ test('renderer wallet onboarding, management, settings, copy, confirmation, keyb
   documentRef.elements.get('[data-wallet-address]').dispatch('input');
   await Promise.resolve();
   documentRef.elements.get('[data-wallet-form]').dispatch('submit');
-  await Promise.resolve();
+  await flush();
   nextFamily = 'cardano';
   documentRef.elements.get('[data-add-wallet]').dispatch('click');
   documentRef.elements.get('[data-wallet-address]').value = 'cardano-synthetic';
@@ -115,14 +117,14 @@ test('renderer wallet onboarding, management, settings, copy, confirmation, keyb
   documentRef.elements.get('[data-wallet-address]').dispatch('input');
   await Promise.resolve();
   documentRef.elements.get('[data-wallet-form]').dispatch('submit');
-  await Promise.resolve();
+  await flush();
   assert.equal(state.wallets.at(-1).family, 'cardano');
 
   const editButton = documentRef.elements.get('[data-wallet-list]').children.find(button => button.getAttribute('data-wallet-action') === 'edit');
   editButton.dispatch('click');
   documentRef.elements.get('[data-wallet-label]').value = 'Edited synthetic';
   documentRef.elements.get('[data-wallet-form]').dispatch('submit');
-  await Promise.resolve();
+  await flush();
   assert.equal(state.wallets[0].label, 'Edited synthetic');
   const copyButton = documentRef.elements.get('[data-wallet-list]').children.find(button => button.getAttribute('data-wallet-action') === 'copy');
   copyButton.dispatch('click');

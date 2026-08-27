@@ -442,6 +442,31 @@ test('configured sync refresh is serialized, persists the returned state, and ma
   assert.equal(readyRuns, 1);
 });
 
+test('wallet mutations interrupt a slow background refresh instead of waiting behind network work', async () => {
+  const f = runtimeFixture();
+  let observedSignal;
+  let release;
+  const sync = { coordinator: { async run(state, context) {
+    observedSignal = context.signal;
+    await new Promise(resolve => {
+      release = resolve;
+      if (context.signal.aborted) resolve();
+      else context.signal.addEventListener('abort', resolve, { once: true });
+    });
+    return { state, results: [] };
+  }, stop() { release?.(); }, active() { return 1; } } };
+  const composition = createMainComposition({ app: f.app, BrowserWindow: f.FakeWindow, ipcMain: f.ipcMain, storage: f.storage, scheduler: f.scheduler, sync, ids: { next: () => 'priority-wallet' }, clock: { now: () => 12 }, paths: { preload: '/tmp/preload.js', renderer: '/tmp/index.html' }, platform: 'linux' });
+  await composition.start();
+  for (let attempt = 0; observedSignal === undefined && attempt < 20; attempt++) await Promise.resolve();
+  assert.equal(observedSignal.aborted, false);
+  const added = await f.handlers.get('holdvue:add-wallet')({}, { label: 'Priority', family: 'evm', address: `0x${'6'.repeat(40)}`, options: { autoScanCommonChains: true, chainIds: [] } });
+  assert.equal(observedSignal.aborted, true);
+  assert.equal(added.ok, true);
+  assert.equal(added.value.wallets[0].id, 'priority-wallet');
+  assert.equal(f.storage.state.wallets[0].label, 'Priority');
+  composition.stop();
+});
+
 test('clipboard IPC copies only an existing wallet address and fails closed', async () => {
   const f = runtimeFixture();
   const writes = [];

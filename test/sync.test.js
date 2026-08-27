@@ -150,6 +150,10 @@ test('sync converts adapter exceptions into structured failures and aborts activ
   await signalCoordinator.run(state(), signalContext);
   await signalCoordinator.run(state(), signalContext);
   caller.abort();
+  let preAborted = false;
+  const preAbortedCoordinator = createSyncCoordinator({ adapters: [{ family: 'evm', providerId: 'evm', async scan(_wallet, context) { preAborted = context.signal.aborted; return success('3'); } }], ids: { next: () => 'pre-aborted-position' }, now: () => 8 });
+  await preAbortedCoordinator.run(state(), signalContext);
+  assert.equal(preAborted, true);
 });
 
 test('sync pricing stage is optional and contains pricing failures without losing wallet state', async () => {

@@ -130,6 +130,7 @@ export function createSyncCoordinator(dependencies: SyncDependencies): SyncCoord
         const abort = (): void => controller.abort();
         stopController.signal.addEventListener('abort', abort, { once: true });
         context.signal?.addEventListener('abort', abort, { once: true });
+        if (context.signal?.aborted) controller.abort();
         try {
           const attempt = providerEnabled(next, providerId) && adapter ? await adapter.scan({ ...wallet }, { ...context, signal: controller.signal, settings: next.settings, now: dependencies.now() }) : disabledResult(wallet, providerId);
           results[index] = attempt;

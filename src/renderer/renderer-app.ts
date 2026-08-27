@@ -178,6 +178,7 @@ export function createRendererController(documentRef: RendererDocument, api: Hol
   let pendingKeyDelete: 'etherscan' | 'fmp' | null = null;
   let keyDeleteRestoreTarget: RendererElement | null = null;
   let detected: AddressMatch | null = null;
+  let walletSaving = false;
   let focusIntent: { readonly kind: 'settings' | 'priceSettings' | 'add' } | { readonly kind: 'wallet'; readonly id: string; readonly action: 'copy' | 'edit' | 'delete'; readonly scope: 'dashboard' | 'settings' } | null = null;
   let minuteDispose: (() => void) | null = null;
   let eventsBound = false;
@@ -745,17 +746,26 @@ export function createRendererController(documentRef: RendererDocument, api: Hol
   };
   const submitWallet = async (event: Event): Promise<void> => {
     event.preventDefault();
-    if (!detected || detected.normalized !== readValue('[data-wallet-address]').trim()) { if (detectionTimer !== null) { clearTimeout(detectionTimer); detectionTimer = null; } await detectInput(); if (!detected) return; }
-    const family = readValue('[data-wallet-family]') as WalletFamily;
-    const label = readValue('[data-wallet-label]').trim();
-    const address = readValue('[data-wallet-address]').trim();
-    if (!families.includes(family) || !label) { showErrorCode(!label ? 'invalid-label' : 'invalid-input'); return; }
-    const allEvm = query('[data-wallet-all-evm]')?.checked !== false;
-    if (family === 'evm' && !allEvm && selectedChainIds().length === 0) { showErrorCode('invalid-chain-selection'); return; }
-    const enabled = query('[data-wallet-enabled]')?.checked !== false;
-    const input = { label, family, address, enabled, options: formOptions(family) };
-    const result = walletDialogMode === 'edit' && editingWalletId ? api.updateWallet(editingWalletId, input) : api.addWallet(input);
-    if (await applyMutation(result)) { setDialogOpen(walletDialog, false); editingWalletId = null; detected = null; await refresh(); restore(); }
+    if (walletSaving) return;
+    walletSaving = true;
+    const control = query('[data-wallet-submit]');
+    if (control) { control.disabled = true; control.setAttribute?.('aria-busy', 'true'); }
+    try {
+      if (!detected || detected.normalized !== readValue('[data-wallet-address]').trim()) { if (detectionTimer !== null) { clearTimeout(detectionTimer); detectionTimer = null; } await detectInput(); if (!detected) { showErrorCode('invalid-address'); return; } }
+      const family = readValue('[data-wallet-family]') as WalletFamily;
+      const label = readValue('[data-wallet-label]').trim();
+      const address = readValue('[data-wallet-address]').trim();
+      if (!families.includes(family) || !label) { showErrorCode(!label ? 'invalid-label' : 'invalid-input'); return; }
+      const allEvm = query('[data-wallet-all-evm]')?.checked !== false;
+      if (family === 'evm' && !allEvm && selectedChainIds().length === 0) { showErrorCode('invalid-chain-selection'); return; }
+      const enabled = query('[data-wallet-enabled]')?.checked !== false;
+      const input = { label, family, address, enabled, options: formOptions(family) };
+      const result = walletDialogMode === 'edit' && editingWalletId ? api.updateWallet(editingWalletId, input) : api.addWallet(input);
+      if (await applyMutation(result)) { setDialogOpen(walletDialog, false); editingWalletId = null; detected = null; void api.refresh().catch(() => undefined); restore(); }
+    } finally {
+      walletSaving = false;
+      if (control) { control.disabled = false; control.setAttribute?.('aria-busy', 'false'); }
+    }
   };
   const submitHolding = async (event: Event): Promise<void> => {
     event.preventDefault();

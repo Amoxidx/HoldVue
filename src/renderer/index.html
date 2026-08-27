@@ -89,7 +89,7 @@
     </main>
 
     <dialog class="modal" data-wallet-dialog hidden aria-labelledby="wallet-dialog-title">
-      <form data-wallet-form>
+      <form data-wallet-form novalidate>
         <div class="modal-heading"><div><p class="eyebrow" data-i18n="dialog.public">PUBLIC SOURCE</p><h2 data-wallet-dialog-title id="wallet-dialog-title" data-i18n="dialog.add">Wallet hinzufügen</h2></div><button type="button" class="icon-button close-button" data-wallet-cancel-close aria-label="Schließen" title="Schließen" data-i18n-aria-label="button.close" data-i18n-title="button.close"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-close"/></svg></button></div>
         <p class="modal-copy" data-i18n="dialog.copy">Nur öffentliche Adresse oder xpub. Keine Seed-Phrase und kein privater Schlüssel.</p>
         <div class="field wallet-address-field"><label for="wallet-address" data-i18n="field.address">Adresse oder Extended Public Key</label><div class="input-action"><input id="wallet-address" data-wallet-address required maxlength="256" autocomplete="off" spellcheck="false" aria-describedby="wallet-detection wallet-error"><button type="button" class="secondary action-button detect-button" data-wallet-detect><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-scan"/></svg><span data-i18n="button.detect">Adresse prüfen</span></button></div><div class="wallet-detection-result" data-wallet-detection-result data-state="idle"><span class="detection-mark" aria-hidden="true"><svg class="icon" focusable="false"><use data-detection-icon-use href="#icon-scan"/></svg></span><div><span class="detection-label" data-i18n="field.family">Erkannte Familie</span><p id="wallet-detection" class="field-help" data-wallet-detection aria-live="polite" data-i18n="detection.prompt">Adresse eingeben oder einfügen</p></div></div></div>
@@ -100,7 +100,7 @@
         </div></fieldset>
         <label class="check-row"><input type="checkbox" data-wallet-enabled checked><span data-i18n="field.walletEnabled">Wallet automatisch synchronisieren</span></label>
         <p id="wallet-error" class="inline-error" data-wallet-error role="alert" hidden></p>
-        <div class="modal-actions"><button type="button" class="secondary" data-wallet-cancel data-i18n="button.cancel">Abbrechen</button><button type="submit" class="primary" data-i18n="button.save">Speichern</button></div>
+        <div class="modal-actions"><button type="button" class="secondary" data-wallet-cancel data-i18n="button.cancel">Abbrechen</button><button type="submit" class="primary" data-wallet-submit data-i18n="button.save">Speichern</button></div>
       </form>
     </dialog>
 

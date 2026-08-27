@@ -105,6 +105,7 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
   let refreshPromise: Promise<PublicResult<PortfolioState>> | null = null;
   let refreshScansWallets = false;
   let queuedFullRefreshPromise: Promise<PublicResult<PortfolioState>> | null = null;
+  let refreshController: AbortController | null = null;
   let searchController: AbortController | null = null;
   const walletScanIntervalMs = options.walletScanIntervalMs ?? 5 * 60_000;
 
@@ -163,11 +164,15 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
     mutationQueue = next.then(() => undefined, () => undefined);
     return next;
   };
-  const rejectedMutation = <T>(code: string, message: string): Promise<PublicResult<T>> => enqueueMutation(async () => failure(code, message));
+  const enqueueUserMutation = <T>(task: () => Promise<T>): Promise<T> => {
+    refreshController?.abort();
+    return enqueueMutation(task);
+  };
+  const rejectedMutation = <T>(code: string, message: string): Promise<PublicResult<T>> => enqueueUserMutation(async () => failure(code, message));
   const loadState = async (): Promise<PortfolioState> => parsePortfolioState(await options.storage.load());
   const providerForFamily: Record<WalletFamily, string> = { evm: 'evm', bitcoin: 'bitcoin.mempool', solana: 'solana.rpc', cardano: 'cardano.koios' };
   const enableOnboardingProvider = (state: PortfolioState, family: WalletFamily): PortfolioState => updateSettings(state, { enabledProviderIds: [...new Set([...state.settings.enabledProviderIds, providerForFamily[family]])] });
-  const mutateWallet = (task: (state: PortfolioState) => WalletResult<PortfolioState> | PublicFailure): Promise<PublicResult<PortfolioState>> => enqueueMutation(async () => {
+  const mutateWallet = (task: (state: PortfolioState) => WalletResult<PortfolioState> | PublicFailure): Promise<PublicResult<PortfolioState>> => enqueueUserMutation(async () => {
     try {
       const current = await loadState();
       const result = task(current);
@@ -179,7 +184,7 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
       return failure('storage-failed', 'Local state could not be updated.');
     }
   });
-  const mutateHolding = (task: (state: PortfolioState) => HoldingResult<PortfolioState> | PublicFailure): Promise<PublicResult<PortfolioState>> => enqueueMutation(async () => {
+  const mutateHolding = (task: (state: PortfolioState) => HoldingResult<PortfolioState> | PublicFailure): Promise<PublicResult<PortfolioState>> => enqueueUserMutation(async () => {
     try {
       const result = task(await loadState());
       if (!result.ok) return failure(result.code, result.message);
@@ -195,7 +200,7 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
       return resolved;
     } catch { return failure('search-failed', 'Instrument search failed.'); }
   };
-  const mutateSettings = (patch: Partial<Omit<Settings, 'schemaVersion'>>): Promise<PublicResult<PortfolioState>> => enqueueMutation(async () => {
+  const mutateSettings = (patch: Partial<Omit<Settings, 'schemaVersion'>>): Promise<PublicResult<PortfolioState>> => enqueueUserMutation(async () => {
     try {
       const next = updateSettings(await loadState(), patch);
       await options.storage.save(next);
@@ -206,7 +211,7 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
       return failure('storage-failed', 'Local state could not be updated.');
     }
   });
-  const mutateProviderKey = (providerId: string, value: unknown, remove: boolean): Promise<PublicResult<PortfolioState>> => enqueueMutation(async () => {
+  const mutateProviderKey = (providerId: string, value: unknown, remove: boolean): Promise<PublicResult<PortfolioState>> => enqueueUserMutation(async () => {
     if (!options.secrets) return failure('secret-storage-unavailable', 'Encrypted provider storage is unavailable.');
     if (!remove && (typeof value !== 'string' || value.length === 0 || value.length > 4096)) return failure('invalid-input', 'Provider key is invalid.');
     try {
@@ -260,18 +265,20 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
       return queued;
     }
     refreshScansWallets = forceWalletScan;
+    const controller = new AbortController();
+    refreshController = controller;
     const pending = enqueueMutation(async () => {
       try {
         const state = await loadState();
         refreshScansWallets ||= walletScanDue(state);
-        const run = await options.sync!.coordinator.run(state, options.sync!.context ?? {}, { scanWallets: refreshScansWallets });
+        const run = await options.sync!.coordinator.run(state, { ...(options.sync!.context ?? {}), signal: controller.signal }, { scanWallets: refreshScansWallets });
         await options.storage.save(run.state);
         if (windowRef && !windowRef.isDestroyed()) windowRef.webContents.send('holdvue:minute');
         return { ok: true as const, value: run.state };
       } catch (error) {
         return failure(error instanceof Error && error.message === 'stopped' ? 'aborted' : 'sync-failed', 'Wallet synchronization did not complete.');
       }
-    }).finally(() => { refreshPromise = null; refreshScansWallets = false; });
+    }).finally(() => { refreshPromise = null; refreshScansWallets = false; refreshController = null; });
     refreshPromise = pending;
     return pending;
   };
@@ -439,7 +446,7 @@ export function createMainComposition(options: MainCompositionOptions): MainComp
 
   return {
     start,
-    stop: () => { searchController?.abort(); searchController = null; options.scheduler.stop(); options.sync?.coordinator.stop(); },
+    stop: () => { searchController?.abort(); searchController = null; refreshController?.abort(); refreshController = null; options.scheduler.stop(); options.sync?.coordinator.stop(); },
     emitMinute: () => { if (options.sync) void refresh(false); else emitMinute(); },
     getWindow: () => windowRef
   };

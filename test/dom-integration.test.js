@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { JSDOM } from 'jsdom';
 import { createRendererController } from '../src/renderer/renderer-app.ts';
+import { detectAddress, encodeBase58Check, encodeBech32 } from '../src/shared/addresses.ts';
 
 const syntheticEvm = `0x${'c'.repeat(40)}`;
 const settings = () => ({ schemaVersion: 2, currency: 'EUR', locale: 'de', theme: 'dark', schedulerEnabled: true, spamFilterEnabled: true, showHiddenSpamAssets: false, enabledChainIds: [], customChains: [], rpcOverrides: [], providerRefs: [] });
@@ -20,6 +21,75 @@ async function domFixture() {
   }
   return dom;
 }
+
+test('real save-button clicks add every supported wallet family and expose an immediate busy state', async () => {
+  const dom = await domFixture();
+  let state = { schemaVersion: 2, settings: settings(), positions: [], wallets: [] };
+  let addCalls = 0;
+  let releaseFirstAdd;
+  const api = {
+    async getState() { return success(state); },
+    async detectWalletAddress(address) { return detectAddress(address); },
+    async addWallet(input) {
+      addCalls++;
+      const nextWallet = { schemaVersion: 3, id: `clicked-${addCalls}`, createdAt: addCalls, ...input };
+      state = { ...state, wallets: [...state.wallets, nextWallet] };
+      if (addCalls === 1) await new Promise(resolve => { releaseFirstAdd = resolve; });
+      return success(state);
+    },
+    async refresh() { return success(state); },
+    onMinute() { return () => undefined; }
+  };
+  const controller = createRendererController(dom.window.document, api);
+  controller.start();
+  await controller.render();
+  const documentRef = dom.window.document;
+  const form = documentRef.querySelector('[data-wallet-form]');
+  const saveButton = documentRef.querySelector('[data-wallet-submit]');
+  assert.equal(form.noValidate, true);
+
+  documentRef.querySelector('[data-add-wallet]').click();
+  saveButton.click();
+  await flush();
+  assert.equal(documentRef.querySelector('[data-wallet-error]').hidden, false);
+  assert.match(documentRef.querySelector('[data-wallet-error]').textContent, /Adresse/i);
+
+  const bitcoin = encodeBase58Check(new Uint8Array([0, ...new Uint8Array(20).fill(9)]));
+  const cardano = encodeBech32('addr', new Uint8Array([0x01, ...new Uint8Array(56).fill(5)]));
+  const cases = [
+    { family: 'evm', address: `0x${'e'.repeat(40)}`, option: wallet => assert.equal(wallet.options.autoScanCommonChains, true) },
+    { family: 'bitcoin', address: bitcoin, option: wallet => assert.equal(wallet.options.network, 'mainnet') },
+    { family: 'solana', address: '1'.repeat(32), option: wallet => assert.equal(wallet.options.network, 'mainnet-beta') },
+    { family: 'cardano', address: cardano, option: wallet => assert.equal(wallet.options.network, 'mainnet') }
+  ];
+  for (const [index, item] of cases.entries()) {
+    if (index > 0) documentRef.querySelector('[data-add-wallet]').click();
+    const address = documentRef.querySelector('[data-wallet-address]');
+    address.value = item.address;
+    address.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    documentRef.querySelector('[data-wallet-detect]').click();
+    await flush();
+    assert.equal(documentRef.querySelector('[data-wallet-detection-result]').dataset.state, 'success');
+    documentRef.querySelector('[data-wallet-label]').value = `Clicked ${item.family}`;
+    saveButton.click();
+    if (index === 0) {
+      assert.equal(saveButton.disabled, true);
+      assert.equal(saveButton.getAttribute('aria-busy'), 'true');
+      form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+      assert.equal(addCalls, 1);
+      releaseFirstAdd();
+    }
+    await flush();
+    await flush();
+    assert.equal(documentRef.querySelector('[data-wallet-dialog]').hidden, true);
+    assert.equal(saveButton.disabled, false);
+    assert.equal(saveButton.getAttribute('aria-busy'), 'false');
+    assert.equal(state.wallets.at(-1).family, item.family);
+    item.option(state.wallets.at(-1));
+  }
+  assert.equal(addCalls, 4);
+  assert.deepEqual(state.wallets.map(item => item.family), ['evm', 'bitcoin', 'solana', 'cardano']);
+});
 
 test('real index DOM wires every dialog control, locale, focus, full address and EVM options', async () => {
   const dom = await domFixture();
