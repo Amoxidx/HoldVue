@@ -5,7 +5,7 @@ import {
   assetIdentityForInstrument, assetIdentityForPosition, createCoinGeckoPriceAdapter, createFmpQuoteAdapter, createPricingCoordinator, createYahooQuoteAdapter, providerQuoteSymbol, yahooQuoteSymbol,
   decimalToScaled, mergePriceState, roundsToZeroInBothCurrencies, scaledToDecimal, updateHistory, valueAssets
 } from '../src/shared/pricing.ts';
-import { canonicalEvmNativeAssetId, canonicalizePersistedAssetId, knownEvmNativeCoinId } from '../src/shared/asset-identity.ts';
+import { canonicalEvmNativeAssetId, canonicalizePersistedAssetId, isEvmNativeSystemContract, knownEvmNativeCoinId } from '../src/shared/asset-identity.ts';
 import { createEmptyPortfolioState, parsePortfolioState, PRICE_SCALE } from '../src/shared/state.ts';
 import { TransportError } from '../src/shared/transport.ts';
 
@@ -84,6 +84,9 @@ test('asset identities stack canonical native coins while preserving chain-speci
   assert.equal(canonicalizePersistedAssetId('asset:evm:1:native:native:2'), 'asset:evm:1:native:native:2');
   assert.equal(canonicalizePersistedAssetId('asset:evm:999999:native:native:999999'), 'asset:evm:999999:native:native:999999');
   assert.equal(canonicalizePersistedAssetId('instrument:synthetic'), 'instrument:synthetic');
+  assert.equal(isEvmNativeSystemContract(137, `0x${'0'.repeat(36)}1010`), true);
+  assert.equal(isEvmNativeSystemContract(137, `0x${'0'.repeat(39)}1`), false);
+  assert.equal(isEvmNativeSystemContract(null, `0x${'0'.repeat(36)}1010`), false);
 });
 
 test('CoinGecko keyless adapter parses official fields, aliases native ids, groups token platforms and marks partials', async () => {
@@ -129,6 +132,7 @@ test('CoinGecko keyless token pricing sends one contract per public request', as
   const first = `0x${'c'.repeat(40)}`;
   const second = `0x${'d'.repeat(40)}`;
   const requests = [];
+  const waits = [];
   const http = fakeHttp(request => {
     const url = new URL(request.url);
     const addresses = url.searchParams.get('contract_addresses').split(',');
@@ -136,9 +140,10 @@ test('CoinGecko keyless token pricing sends one contract per public request', as
     return { [addresses[0].toLowerCase()]: { eur: 1, usd: 1.2 } };
   });
   const assets = [first, second].map((contractAddress, index) => ({ assetId: `base-${index}`, kind: 'fungible', family: 'evm', symbol: 'BASE', platform: 'base', contractAddress }));
-  const result = await createCoinGeckoPriceAdapter({ http, maxBatch: 50, maxConcurrency: 2 }).fetch(assets, { ...httpContext, http });
+  const result = await createCoinGeckoPriceAdapter({ http, maxBatch: 50, maxConcurrency: 1, requestDelayMs: 1, wait: async milliseconds => { waits.push(milliseconds); } }).fetch(assets, { ...httpContext, http });
   assert.equal(result.quotes.length, 2);
   assert.deepEqual(requests, [[first], [second]]);
+  assert.deepEqual(waits, [1]);
 });
 
 function yahooPayload(currency, current, previous, timestamp = 123, closes = []) {

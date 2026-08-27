@@ -140,7 +140,7 @@ export function assetIdentityForPosition(position: Position, network?: string): 
 }
 export function assetIdentityForInstrument(instrument: Instrument): PriceAsset { return { assetId: `instrument:${instrument.id}`, kind: 'instrument', family: 'instrument', symbol: instrument.symbol, instrumentId: instrument.id, instrument }; }
 
-interface CoinGeckoOptions { readonly http: HttpJsonPort; readonly maxBatch?: number; readonly maxConcurrency?: number; readonly timeoutMs?: number; readonly maxBytes?: number; readonly wait?: (ms: number, signal?: AbortSignal) => Promise<void>; }
+interface CoinGeckoOptions { readonly http: HttpJsonPort; readonly maxBatch?: number; readonly maxConcurrency?: number; readonly requestDelayMs?: number; readonly timeoutMs?: number; readonly maxBytes?: number; readonly wait?: (ms: number, signal?: AbortSignal) => Promise<void>; }
 function geckoPrice(assetId: string, value: unknown, fetchedAt: number): PriceQuote | null {
   if (!record(value)) return null;
   const eur = positiveScaled(value.eur); const usd = positiveScaled(value.usd);
@@ -156,10 +156,13 @@ function geckoPrice(assetId: string, value: unknown, fetchedAt: number): PriceQu
 export function createCoinGeckoPriceAdapter(options: CoinGeckoOptions): PriceProvider {
   const requestedBatch = Number(options.maxBatch); const batch = Number.isSafeInteger(requestedBatch) && requestedBatch > 0 && requestedBatch <= 250 ? requestedBatch : 50;
   const requestedConcurrency = Number(options.maxConcurrency); const concurrency = Number.isSafeInteger(requestedConcurrency) && requestedConcurrency > 0 && requestedConcurrency <= 8 ? requestedConcurrency : 2;
+  const requestedDelay = Number(options.requestDelayMs); const requestDelayMs = Number.isSafeInteger(requestedDelay) && requestedDelay >= 0 && requestedDelay <= 5_000 ? requestedDelay : 0;
   const wait = options.wait ?? (async (ms: number, signal?: AbortSignal) => { await new Promise<void>((resolve, reject) => { const timer = setTimeout(resolve, ms); signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new TransportError('aborted', 'Price request was aborted.')); }, { once: true }); }); });
   return { id: COINGECKO_PROVIDER_ID, async fetch(assets, context) {
     const quotes: PriceQuote[] = []; const statuses: PriceStatus[] = []; let partial = false;
     let cooldown = false;
+    let requestStarted = false;
+    const pace = async (): Promise<void> => { if (requestStarted && requestDelayMs > 0) await wait(requestDelayMs, context.signal); requestStarted = true; };
     const request = async (requestValue: Parameters<HttpJsonPort['requestJson']>[0]): Promise<unknown> => {
       let attempt = 0;
       while (true) {
@@ -179,6 +182,7 @@ export function createCoinGeckoPriceAdapter(options: CoinGeckoOptions): PricePro
       try {
         const ids = group.map(asset => asset.coingeckoId!).join(',');
         if (cooldown) throw new TransportError('http', 'Provider cooldown.', 429);
+        await pace();
         const payload = await request({ url: `${COINGECKO_SIMPLE_PRICE_URL}?ids=${encodeURIComponent(ids)}&vs_currencies=eur,usd&include_24hr_change=true&include_last_updated_at=true`, timeoutMs: options.timeoutMs ?? 10_000, maxBytes: options.maxBytes ?? 512_000 });
         if (!record(payload)) throw new Error('malformed');
         for (const asset of natives.filter(item => group.some(groupItem => groupItem.coingeckoId === item.coingeckoId))) { const q = geckoPrice(asset.assetId, payload[asset.coingeckoId!], context.now); if (q) { quotes.push(q); statuses.push(statusFor(asset.assetId, COINGECKO_PROVIDER_ID, 'ok', null, context.now)); } else { partial = true; statuses.push(statusFor(asset.assetId, COINGECKO_PROVIDER_ID, 'unpriced', 'malformed', null)); } }
@@ -190,6 +194,7 @@ export function createCoinGeckoPriceAdapter(options: CoinGeckoOptions): PricePro
       try {
         const addresses = group.map(asset => asset.contractAddress!).join(',');
         if (cooldown) throw new TransportError('http', 'Provider cooldown.', 429);
+        await pace();
         const payload = await request({ url: `${COINGECKO_TOKEN_PRICE_URL}/${encodeURIComponent(platform)}?contract_addresses=${encodeURIComponent(addresses)}&vs_currencies=eur,usd&include_24hr_change=true&include_last_updated_at=true`, timeoutMs: options.timeoutMs ?? 10_000, maxBytes: options.maxBytes ?? 512_000 });
         if (!record(payload)) throw new Error('malformed');
         for (const asset of group) { const q = geckoPrice(asset.assetId, payload[asset.contractAddress!.toLowerCase()], context.now); if (q) { quotes.push(q); statuses.push(statusFor(asset.assetId, COINGECKO_PROVIDER_ID, 'ok', null, context.now)); } else { partial = true; statuses.push(statusFor(asset.assetId, COINGECKO_PROVIDER_ID, 'unpriced', 'malformed', null)); } }

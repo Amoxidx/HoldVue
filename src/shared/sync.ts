@@ -132,7 +132,7 @@ export function createSyncCoordinator(dependencies: SyncDependencies): SyncCoord
         context.signal?.addEventListener('abort', abort, { once: true });
         if (context.signal?.aborted) controller.abort();
         try {
-          const attempt = providerEnabled(next, providerId) && adapter ? await adapter.scan({ ...wallet }, { ...context, signal: controller.signal, settings: next.settings, positions: next.positions.filter(position => position.walletId === wallet.id), now: dependencies.now() }) : disabledResult(wallet, providerId);
+          const attempt = providerEnabled(next, providerId) && adapter ? await adapter.scan({ ...wallet }, { ...context, signal: controller.signal, settings: next.settings, positions: next.positions, now: dependencies.now() }) : disabledResult(wallet, providerId);
           results[index] = attempt;
         } catch (error) {
           results[index] = { family: wallet.family, providerId, status: error instanceof Error && error.message === 'stopped' ? 'aborted' : 'error', capability: 'native-complete', positions: [], errorCode: error instanceof Error && error.message === 'stopped' ? 'aborted' : 'scan-failed' };

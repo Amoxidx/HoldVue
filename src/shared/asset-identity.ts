@@ -14,8 +14,16 @@ const EVM_NATIVE_COIN_IDS: Readonly<Record<number, string>> = Object.freeze({
   534352: 'ethereum'
 });
 
+const EVM_NATIVE_SYSTEM_CONTRACTS: Readonly<Record<number, readonly string[]>> = Object.freeze({
+  137: Object.freeze([`0x${'0'.repeat(36)}1010`])
+});
+
 export function knownEvmNativeCoinId(chainId: number | null): string | undefined {
   return chainId === null ? undefined : EVM_NATIVE_COIN_IDS[chainId];
+}
+
+export function isEvmNativeSystemContract(chainId: number | null, assetId: string): boolean {
+  return chainId !== null && (EVM_NATIVE_SYSTEM_CONTRACTS[chainId]?.includes(assetId.toLowerCase()) ?? false);
 }
 
 export function canonicalEvmNativeAssetId(chainId: number | null, positionAssetId: string): string {

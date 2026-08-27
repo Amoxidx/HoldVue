@@ -2,6 +2,7 @@ import type { AdapterContext, AdapterScanResult, PositionDraft } from './adapter
 import type { EvmChain } from './chains.ts';
 import { createRpcWorkLimiter } from './scanner.ts';
 import type { EvmWalletSource, SpamAssessment } from './state.ts';
+import { isEvmNativeSystemContract } from './asset-identity.ts';
 import { classifyFungibleToken } from './spam.ts';
 import type { HttpJsonPort } from './transport.ts';
 import { TransportError } from './transport.ts';
@@ -77,6 +78,7 @@ export function parseCoinGeckoTokenCatalog(value: unknown, chainIds: readonly nu
       const contractValue = platform ? item.platforms[platform] : undefined;
       if (typeof contractValue !== 'string' || !/^0x[0-9a-fA-F]{40}$/.test(contractValue)) continue;
       const contract = contractValue.toLowerCase();
+      if (isEvmNativeSystemContract(chainId, contract)) continue;
       const key = `${chainId}:${contract}`;
       if (!tokens.has(key)) tokens.set(key, { chainId, contract, symbol: symbol.toUpperCase(), name });
     }

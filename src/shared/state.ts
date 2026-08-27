@@ -1,7 +1,7 @@
 import type { Currency, Locale } from './ports.ts';
 import { detectAddress, validateAddressForFamily, type AddressDetection, type AddressErrorCode } from './addresses.ts';
 import { DEFAULT_NATIVE_DECIMALS, validateCustomChain, validateEndpointUrl } from './chains.ts';
-import { canonicalEvmNativeAssetId, canonicalizePersistedAssetId } from './asset-identity.ts';
+import { canonicalEvmNativeAssetId, canonicalizePersistedAssetId, isEvmNativeSystemContract } from './asset-identity.ts';
 
 export const CURRENT_SCHEMA_VERSION = 5 as const;
 export type Theme = 'light' | 'dark';
@@ -699,7 +699,7 @@ export function parsePortfolioState(value: unknown): PortfolioState {
   const positions = rawPositions.map(parsePosition).filter((position): position is Position => position !== null).filter(position => {
     const wallet = normalizedWallets.find(item => item.id === position.walletId);
     if (!wallet || wallet.family !== position.family) return false;
-    if (position.family === 'evm') return position.chainId !== null && Number.isSafeInteger(position.chainId) && position.chainId > 0;
+    if (position.family === 'evm') return position.chainId !== null && Number.isSafeInteger(position.chainId) && position.chainId > 0 && !(position.assetKind === 'fungible' && isEvmNativeSystemContract(position.chainId, position.assetId));
     return position.chainId === null;
   });
   const rawInstruments = version >= 4 && Array.isArray(value.instruments) ? value.instruments : [];

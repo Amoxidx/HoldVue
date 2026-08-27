@@ -36,8 +36,9 @@ test('CoinGecko token catalog parsing is strict, bounded and deterministic', () 
     { symbol: 'BAD', name: 'Bad contract', platforms: { base: '0x1234' } },
     { symbol: 'AAA', name: 'Alpha', platforms: { base: contractA } },
     { symbol: 'DUP', name: 'Duplicate', platforms: { base: contractA.toUpperCase().replace('0X', '0x') } },
-    { symbol: 'ETH', name: 'Ethereum token', platforms: { ethereum: contractB } }
-  ], [8453, 1, 999999]);
+    { symbol: 'ETH', name: 'Ethereum token', platforms: { ethereum: contractB } },
+    { symbol: 'POL', name: 'Polygon Ecosystem Token', platforms: { 'polygon-pos': `0x${'0'.repeat(36)}1010` } }
+  ], [8453, 1, 137, 999999]);
   assert.deepEqual(parsed, [
     { chainId: 8453, contract: contractA, symbol: 'AAA', name: 'Alpha' },
     { chainId: 1, contract: contractB, symbol: 'ETH', name: 'Ethereum token' }
@@ -78,7 +79,7 @@ test('keyless discovery bounds catalog work, rotates coverage and prioritizes pr
   assert.equal(calls.filter(call => call.url !== COINGECKO_TOKEN_CATALOG_URL && call.body[0].params[0].data.startsWith('0x70a08231')).length, 3);
 
   const knownFirst = createCoinGeckoEvmTokenDiscovery({ http, catalogScanLimitPerChain: 1, batchSize: 2, wait: async () => undefined });
-  const known = await knownFirst.scan(wallet(), [chain()], { now: 3, positions: [{ schemaVersion: 3, id: 'known', walletId: 'wallet', family: 'evm', chainId: 8453, assetKind: 'fungible', assetId: contractB, symbol: 'BBB', baseUnits: '1', quantity: '0.000000000000000001', confirmedBaseUnits: '1', pendingBaseUnits: '0', decimals: 18, updatedAt: 1, spam: null }] });
+  const known = await knownFirst.scan(wallet(), [chain()], { now: 3, positions: [{ schemaVersion: 3, id: 'known', walletId: 'different-wallet', family: 'evm', chainId: 8453, assetKind: 'fungible', assetId: contractB, symbol: 'BBB', baseUnits: '1', quantity: '0.000000000000000001', confirmedBaseUnits: '1', pendingBaseUnits: '0', decimals: 18, updatedAt: 1, spam: null }] });
   assert.deepEqual(known.positions.map(item => item.symbol).sort(), ['AAA', 'BBB']);
 
   const rotating = createCoinGeckoEvmTokenDiscovery({ http: { requestJson: async request => responseFor(request, { [contractA]: 0n, [contractB]: 1n }) }, catalogScanLimitPerChain: 1, wait: async () => undefined });

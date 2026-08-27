@@ -90,7 +90,7 @@ export function startMain(load: ElectronLoader = loadRuntimeModule, factory: Com
   const pricingCoordinator = createPricingCoordinator({
     now: Date.now,
     providers: [
-      createCoinGeckoPriceAdapter({ http: transport }),
+      createCoinGeckoPriceAdapter({ http: transport, maxConcurrency: 1, requestDelayMs: 750 }),
       createYahooQuoteAdapter({ http: transport }),
       createFmpQuoteAdapter({
         http: transport,
